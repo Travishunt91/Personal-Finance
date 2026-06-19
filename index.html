@@ -42,6 +42,10 @@
   .stat .v{font-size:1.32rem;font-weight:700}
   .stat .s{font-size:.76rem;color:var(--muted);margin-top:2px}
   .reserve .v{color:var(--reserve)}
+  .status{border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:.9rem;line-height:1.45;border:1px solid}
+  .status.ok{background:var(--accent-soft);border-color:#bfe3cd;color:#155f39}
+  .status.warn{background:var(--warn-soft);border-color:#f3dca0;color:#8a5d12}
+  .status.bad{background:#fdecea;border-color:#f1b9b2;color:#9c0006}
   .need{margin-bottom:16px;border-left:4px solid var(--accent)}
   .need .lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
   .need .big{font-size:2.1rem;font-weight:750;color:var(--accent);line-height:1.05;margin:4px 0 2px;letter-spacing:-.02em}
@@ -124,6 +128,8 @@
     <div class="big" id="safe">$0</div>
     <div class="exp" id="safeExp"></div>
   </div>
+
+  <div class="status ok" id="status"></div>
 
   <div class="stats">
     <div class="stat"><div class="k">Current balance</div><div class="v" id="sBal">$0</div><div class="s" id="sBalS">on date</div></div>
@@ -208,8 +214,9 @@ const DEFAULTS = {
 };
 const STORE_KEY = "rentBillsConfig.v1";
 const clone = (o) => JSON.parse(JSON.stringify(o));
+function normalize(c) { c.horizonDays = DEFAULTS.horizonDays; return c; } // horizon is app behavior, not user data
 function loadConfig() {
-  try { const s = localStorage.getItem(STORE_KEY); if (s) return Object.assign(clone(DEFAULTS), JSON.parse(s)); } catch (e) {}
+  try { const s = localStorage.getItem(STORE_KEY); if (s) return normalize(Object.assign(clone(DEFAULTS), JSON.parse(s))); } catch (e) {}
   return clone(DEFAULTS);
 }
 function saveConfig() { try { localStorage.setItem(STORE_KEY, JSON.stringify(CONFIG)); } catch (e) {} }
@@ -289,7 +296,7 @@ function project(cfg, asOf, balance, cushion) {
   const rank = { bill:0, charge:0, pay:1, skip:1 };
   events.sort((a,b) => ms(a.d)-ms(b.d) || rank[a.t]-rank[b.t]);
 
-  const ledger = []; let minOp = operating, minDate = asOf;
+  const ledger = []; let minOp = operating, minDate = asOf, minBal = operating + reserve, minBalDate = asOf;
   for (const e of events) {
     let credit=0, debit=0, note="";
     if (e.t==="bill") { debit=e.amount; operating-=e.amount; }
@@ -309,7 +316,9 @@ function project(cfg, asOf, balance, cushion) {
       note="3rd check this month — not deposited here";
     }
     if (operating < minOp) { minOp=operating; minDate=e.d; }
-    ledger.push({ date:e.d, name:e.name, credit, debit, note, balance:operating+reserve, operating });
+    const acct = operating + reserve;
+    if (acct < minBal) { minBal=acct; minBalDate=e.d; }
+    ledger.push({ date:e.d, name:e.name, credit, debit, note, balance:acct, operating });
   }
   const eom = clampDate(asOf.getFullYear(), asOf.getMonth(), 31);
   const before = ledger.filter(r => ms(r.date) <= ms(eom));
@@ -318,6 +327,7 @@ function project(cfg, asOf, balance, cushion) {
     reserve: r0.total, fundReserve: r0.per,
     safeNow: Math.max(0, minOp - cushion),
     lowPoint: minOp, lowDate: minDate,
+    accountLow: minBal, accountLowDate: minBalDate,
     eomBalance: eomRow.balance, eomDate: eom,
     ledger,
   };
@@ -343,12 +353,26 @@ function render() {
   $("safe").textContent = fmt0(p.safeNow);
   $("safeExp").textContent = `After covering every bill through ${nice(addDays(asOf, CONFIG.horizonDays))}, `
     + `keeping a ${fmt0(cush)} cushion and the ${fmt0(p.reserve)} sinking-fund reserve. `
-    + `Your tightest moment is ${fmt0(p.lowPoint)} on ${nice(p.lowDate)}.`;
+    + `Your tightest moment is ${fmt0(p.accountLow)} on ${nice(p.accountLowDate)}.`;
+
+  // never-go-negative status
+  const st = $("status");
+  if (p.accountLow < 0) {
+    st.className = "status bad";
+    st.innerHTML = `⚠ <b>Overdraft risk:</b> your balance is projected to hit <b>${fmt0(p.accountLow)}</b> on ${nice(p.accountLowDate)}. `
+      + `Keep at least ${fmt0(Math.ceil(-p.accountLow + cush))} more in the account (or hold off spending) before then.`;
+  } else if (p.lowPoint < 0) {
+    st.className = "status warn";
+    st.innerHTML = `⚠ <b>Tight around ${nice(p.accountLowDate)}:</b> you stay above $0 (low ${fmt0(p.accountLow)}), but you'd dip into your sinking-fund reserve. Avoid extra spending before then.`;
+  } else {
+    st.className = "status ok";
+    st.innerHTML = `✓ <b>You stay above $0 the whole way.</b> Lowest balance is <b>${fmt0(p.accountLow)}</b> on ${nice(p.accountLowDate)} — the stretch before your next deposit.`;
+  }
 
   $("sBal").textContent = fmt0(bal); $("sBalS").textContent = nice(asOf);
   $("sRes").textContent = fmt0(p.reserve);
   $("sResS").textContent = Object.entries(p.fundReserve).map(([k,v]) => `${k}: ${fmt0(v)}`).join(" · ") || "none yet";
-  $("sLow").textContent = fmt0(p.lowPoint); $("sLowS").textContent = nice(p.lowDate);
+  $("sLow").textContent = fmt0(p.accountLow); $("sLowS").textContent = nice(p.accountLowDate);
   $("sEom").textContent = fmt0(p.eomBalance); $("sEomS").textContent = "by " + nice(p.eomDate);
 
   const need = monthlyNeed(CONFIG);
@@ -364,7 +388,7 @@ function render() {
   const lb = $("ledger"); lb.innerHTML = "";
   for (const r of p.ledger) {
     const tr = document.createElement("tr");
-    const isLow = r.operating === p.lowPoint && ms(r.date) === ms(p.lowDate);
+    const isLow = r.balance === p.accountLow && ms(r.date) === ms(p.accountLowDate);
     if (isLow) tr.className = "low";
     const amt = r.credit ? `<span class="cre">+${fmt0(r.credit)}</span>`
       : r.debit ? `<span class="deb">−${fmt0(r.debit)}</span>`
@@ -450,7 +474,7 @@ $("ed-applycode").addEventListener("click", () => {
   try {
     const obj = JSON.parse(decodeURIComponent(escape(atob($("ed-code").value.trim()))));
     if (!Array.isArray(obj.bills) || !Array.isArray(obj.sinkingFunds)) throw new Error("bad");
-    CONFIG = Object.assign(clone(DEFAULTS), obj);
+    CONFIG = normalize(Object.assign(clone(DEFAULTS), obj));
     saveConfig(); buildEditor(); render(); codeMsg("Applied ✓");
   } catch (e) { codeMsg("Couldn't read that code"); }
 });
