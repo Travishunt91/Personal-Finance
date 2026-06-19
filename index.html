@@ -351,9 +351,11 @@ function render() {
   const p = project(CONFIG, asOf, bal, cush);
 
   $("safe").textContent = fmt0(p.safeNow);
-  $("safeExp").textContent = `After covering every bill through ${nice(addDays(asOf, CONFIG.horizonDays))}, `
-    + `keeping a ${fmt0(cush)} cushion and the ${fmt0(p.reserve)} sinking-fund reserve. `
-    + `Your tightest moment is ${fmt0(p.accountLow)} on ${nice(p.accountLowDate)}.`;
+  $("safeExp").textContent = p.safeNow > 0
+    ? `Yours to move out today for other things — pull it and your account still never drops below $0 `
+      + `(it would bottom at ${fmt0(p.accountLow - p.safeNow)} on ${nice(p.accountLowDate)}). `
+      + `Already covers every bill through ${nice(addDays(asOf, CONFIG.horizonDays))} and keeps your ${fmt0(cush)} cushion + ${fmt0(p.reserve)} sinking-fund reserve.`
+    : `Nothing extra to pull right now — leave the balance as is. Your low is ${fmt0(p.accountLow)} on ${nice(p.accountLowDate)} (see the status above).`;
 
   // never-go-negative status
   const st = $("status");
