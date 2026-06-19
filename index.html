@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Rent &amp; Bills — Safe to Spend</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bills">
+<meta name="theme-color" content="#1a7f4b">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a7f4b'/%3E%3Ctext x='32' y='45' font-size='40' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3E%24%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a7f4b'/%3E%3Ctext x='32' y='45' font-size='40' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3E%24%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg1:#eef2f7; --bg2:#e3ebf5; --card:#ffffff; --ink:#1d2630; --muted:#6b7785;
+    --line:#e3e8ef; --accent:#1a7f4b; --accent-soft:#e7f4ec; --debit:#c0392b;
+    --credit:#1a7f4b; --warn:#b7791f; --warn-soft:#fdf3e0; --reserve:#5b6bd6;
+    --shadow:0 1px 3px rgba(20,30,50,.06),0 8px 24px rgba(20,30,50,.06);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2)); color:var(--ink);
+    padding:20px 14px 56px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:1.5rem;margin:.2rem 0 .15rem}
+  .sub{color:var(--muted);font-size:.9rem;margin:0 0 18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px}
+  .inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+  .field label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:5px;font-weight:600}
+  .field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:1rem;background:#fbfcfe;color:var(--ink)}
+  .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .hero{background:linear-gradient(150deg,#1a7f4b,#15663c);color:#fff;border:none;margin-bottom:16px;position:relative;overflow:hidden}
+  .hero .lbl{font-size:.8rem;opacity:.9;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+  .hero .big{font-size:3rem;font-weight:750;line-height:1.05;margin:6px 0 4px;letter-spacing:-.02em}
+  .hero .exp{font-size:.86rem;opacity:.92;max-width:48ch}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px}
+  .stat .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;margin-bottom:6px}
+  .stat .v{font-size:1.32rem;font-weight:700}
+  .stat .s{font-size:.76rem;color:var(--muted);margin-top:2px}
+  .reserve .v{color:var(--reserve)}
+  .need{margin-bottom:16px;border-left:4px solid var(--accent)}
+  .need .lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  .need .big{font-size:2.1rem;font-weight:750;color:var(--accent);line-height:1.05;margin:4px 0 2px;letter-spacing:-.02em}
+  .need .exp{color:var(--muted);font-size:.86rem}
+  .need-break{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;border-top:1px solid var(--line);padding-top:13px}
+  .need-break div{text-align:center}
+  .need-break span{display:block;font-weight:700;font-size:1.1rem}
+  .need-break small{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.03em}
+  details{margin-top:14px}
+  details>summary{cursor:pointer;font-weight:650;padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::after{content:"▸";color:var(--muted);transition:transform .15s}
+  details[open]>summary::after{transform:rotate(90deg)}
+  .panel{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;margin-top:-8px;padding:6px 4px 4px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:.7rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .deb{color:var(--debit)} .cre{color:var(--credit);font-weight:600}
+  tr.low td{background:var(--warn-soft)}
+  .pill{display:inline-block;font-size:.68rem;background:var(--warn-soft);color:var(--warn);padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:600}
+  .note{color:var(--muted);font-size:.72rem}
+  .foot{color:var(--muted);font-size:.78rem;margin-top:22px;line-height:1.5}
+  .editor{padding:16px}
+  .ed-sec{margin-bottom:20px}
+  .ed-h{font-weight:650;font-size:.96rem;margin-bottom:9px}
+  .ed-income{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .ed-billhead,.ed-row{display:grid;grid-template-columns:1fr 96px 64px 34px;gap:8px;align-items:center}
+  .ed-billhead{font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;padding:0 2px 5px}
+  .ed-row{margin-bottom:8px}
+  .ed-row input,.ed-fund input{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:8px;font-size:.92rem;background:#fbfcfe;color:var(--ink)}
+  .ed-row input:focus,.ed-fund input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .ed-del{border:1px solid var(--line);background:#fff;color:var(--debit);border-radius:8px;cursor:pointer;font-size:1.15rem;line-height:1;padding:7px 0}
+  .ed-del:hover{background:#fdecea;border-color:#f1b9b2}
+  .ed-add{margin-top:6px;border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);padding:9px 14px;border-radius:9px;cursor:pointer;font-weight:650;font-size:.85rem}
+  .ed-fund{border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px;background:#fbfcfe}
+  .ed-fund-head{display:grid;grid-template-columns:1fr 34px;gap:8px;margin-bottom:9px}
+  .ed-fund-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .ed-fund .field label{font-size:.66rem}
+  .ed-actions{display:flex;align-items:center;gap:14px;margin-top:4px}
+  .ed-reset{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;border-radius:9px;cursor:pointer;font-size:.85rem;font-weight:600}
+  .ed-reset:hover{background:#f6f8fb}
+  #ed-saved{color:var(--accent);font-weight:600;opacity:0;transition:opacity .15s}
+  #ed-saved.show{opacity:1}
+  .ed-codebox{width:100%;min-height:84px;border:1px solid var(--line);border-radius:9px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.76rem;line-height:1.4;background:#fbfcfe;color:var(--ink);resize:vertical;word-break:break-all}
+  .ed-copy,.ed-apply{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;border-radius:9px;cursor:pointer;font-size:.85rem;font-weight:600}
+  .ed-apply{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  #ed-codemsg{color:var(--accent);font-weight:600}
+  @media(max-width:620px){
+    .inputs{grid-template-columns:1fr 1fr}
+    .stats{grid-template-columns:1fr 1fr}
+    .hero .big{font-size:2.4rem}
+    h1{font-size:1.3rem}
+    .ed-income{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rent &amp; Bills — Safe to Spend</h1>
+  <p class="sub">Enter your balance to see what's extra after every upcoming bill is covered. Paste your sync code below to load your bills.</p>
+
+  <div class="card inputs">
+    <div class="field">
+      <label for="bal">Current balance ($)</label>
+      <input id="bal" type="number" inputmode="decimal" step="0.01" value="" placeholder="0">
+    </div>
+    <div class="field">
+      <label for="asof">As of date</label>
+      <input id="asof" type="date">
+    </div>
+    <div class="field">
+      <label for="cush">Safety cushion ($)</label>
+      <input id="cush" type="number" inputmode="decimal" step="10" value="100">
+    </div>
+  </div>
+
+  <div class="card hero">
+    <div class="lbl">Safe to use right now</div>
+    <div class="big" id="safe">$0</div>
+    <div class="exp" id="safeExp"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Current balance</div><div class="v" id="sBal">$0</div><div class="s" id="sBalS">on date</div></div>
+    <div class="stat reserve"><div class="k">Sinking-fund reserve</div><div class="v" id="sRes">$0</div><div class="s" id="sResS">parked, don't spend</div></div>
+    <div class="stat"><div class="k">Lowest point ahead</div><div class="v" id="sLow">$0</div><div class="s" id="sLowS">date</div></div>
+    <div class="stat"><div class="k">End of month balance</div><div class="v" id="sEom">$0</div><div class="s" id="sEomS">projected</div></div>
+  </div>
+
+  <div class="card need">
+    <div class="lbl">Deposit per paycheck to cover everything</div>
+    <div class="big" id="perCheck">$0</div>
+    <div class="exp" id="perCheckExp"></div>
+    <div class="need-break">
+      <div><span id="nBills">$0</span><small>bills / mo</small></div>
+      <div><span id="nSink">$0</span><small>sinking / mo</small></div>
+      <div><span id="nTotal">$0</span><small>total / mo</small></div>
+    </div>
+  </div>
+
+  <details open>
+    <summary>Upcoming activity</summary>
+    <div class="panel"><table>
+      <thead><tr><th>Date</th><th>Activity</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+      <tbody id="ledger"></tbody>
+    </table></div>
+  </details>
+
+  <details>
+    <summary>Edit bills &amp; timing</summary>
+    <div class="panel editor">
+      <div class="ed-sec">
+        <div class="ed-h">Income</div>
+        <div class="ed-income">
+          <div class="field"><label for="ed-pay">Paycheck ($)</label><input id="ed-pay" type="number" step="1" inputmode="decimal"></div>
+          <div class="field"><label for="ed-anchor">A known payday</label><input id="ed-anchor" type="date"></div>
+          <div class="field"><label for="ed-freq">Paid every (days)</label><input id="ed-freq" type="number" step="1"></div>
+        </div>
+      </div>
+      <div class="ed-sec">
+        <div class="ed-h">Bills <span class="note">amount &amp; day of month (use 31 for last day)</span></div>
+        <div class="ed-billhead"><span>Name</span><span>Amount&nbsp;$</span><span>Day</span><span></span></div>
+        <div id="ed-bills"></div>
+        <button class="ed-add" id="ed-addbill" type="button">+ Add bill</button>
+      </div>
+      <div class="ed-sec">
+        <div class="ed-h">Sinking funds <span class="note">big charges you save up for</span></div>
+        <div id="ed-funds"></div>
+        <button class="ed-add" id="ed-addfund" type="button">+ Add sinking fund</button>
+      </div>
+      <div class="ed-actions">
+        <button class="ed-reset" id="ed-reset" type="button">Reset to defaults</button>
+        <span class="note" id="ed-saved"></span>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Sync to another device</summary>
+    <div class="panel">
+      <p class="note" style="margin:2px 0 10px;line-height:1.5">Your numbers are saved per device. To copy them to your phone (or back to your computer): on the device that has the right numbers tap <b>Copy code</b>, then on the other device paste it into this box and tap <b>Apply</b>.</p>
+      <textarea id="ed-code" class="ed-codebox" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+      <div class="ed-actions">
+        <button class="ed-copy" id="ed-copy" type="button">Copy code</button>
+        <button class="ed-apply" id="ed-applycode" type="button">Apply pasted code</button>
+        <span class="note" id="ed-codemsg"></span>
+      </div>
+    </div>
+  </details>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+// ---------- config defaults (also editable in the page; saved per-browser) ----------
+const DEFAULTS = {
+  paycheck: 0,
+  payAnchor: "2026-01-02",
+  payEveryDays: 14,
+  horizonDays: 45,
+  bills: [],
+  sinkingFunds: [],
+};
+const STORE_KEY = "rentBillsConfig.v1";
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function loadConfig() {
+  try { const s = localStorage.getItem(STORE_KEY); if (s) return Object.assign(clone(DEFAULTS), JSON.parse(s)); } catch (e) {}
+  return clone(DEFAULTS);
+}
+function saveConfig() { try { localStorage.setItem(STORE_KEY, JSON.stringify(CONFIG)); } catch (e) {} }
+let CONFIG = loadConfig();
+
+// ---------- date helpers ----------
+const D = (s) => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const addDays = (dt, n) => { const r = new Date(dt); r.setDate(r.getDate()+n); return r; };
+const lastDayOfMonth = (y, m) => new Date(y, m+1, 0).getDate();
+const clampDate = (y, m, day) => new Date(y, m, Math.min(day, lastDayOfMonth(y, m)));
+const ms = (dt) => dt.getTime();
+const isoLocal = (dt) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+const fmt = (n) => (n<0?"-$":"$") + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt0 = (n) => (n<0?"-$":"$") + Math.abs(n).toLocaleString("en-US",{maximumFractionDigits:0});
+const nice = (dt) => dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+
+// Paydays in (from, to], flagged: only the first 2 each calendar month fund this
+// account; the 3rd-check months go to auto insurance (24 deposits/year).
+function paydaysFlagged(cfg, from, to) {
+  let p = D(cfg.payAnchor);
+  const monthStart = new Date(from.getFullYear(), from.getMonth(), 1);
+  while (ms(p) > ms(monthStart)) p = addDays(p, -cfg.payEveryDays);
+  const out = []; let curKey = null, idx = 0;
+  while (ms(p) <= ms(to)) {
+    const key = p.getFullYear() * 12 + p.getMonth();
+    if (key !== curKey) { curKey = key; idx = 0; }
+    if (ms(p) > ms(from)) out.push({ d: new Date(p), funding: idx < 2 });
+    idx++; p = addDays(p, cfg.payEveryDays);
+  }
+  return out;
+}
+function fundingPaydays(cfg, from, to) { return paydaysFlagged(cfg, from, to).filter(x => x.funding).map(x => x.d); }
+function chargeDates(fund, from, to) {
+  let c = D(fund.lastCharge); const out = [];
+  while (ms(c) <= ms(to)) {
+    if (ms(c) > ms(from)) out.push(new Date(c));
+    c = new Date(c.getFullYear(), c.getMonth()+fund.intervalMonths, c.getDate());
+  }
+  return out;
+}
+function reserveAsOf(cfg, asOf) {
+  const per = {}; let total = 0;
+  for (const f of cfg.sinkingFunds) {
+    let reserve = 0;
+    const events = [
+      ...fundingPaydays(cfg, D(f.lastCharge), asOf).map(d => ({ d, t: "pay" })),
+      ...chargeDates(f, D(f.lastCharge), asOf).map(d => ({ d, t: "charge" })),
+    ].sort((a,b) => ms(a.d)-ms(b.d) || (a.t==="charge"?-1:1));
+    for (const e of events) {
+      if (e.t==="pay") reserve += Math.min(f.contribution, f.amount-reserve);
+      else reserve = Math.max(0, reserve-f.amount);
+    }
+    per[f.name]=reserve; total+=reserve;
+  }
+  return { total, per };
+}
+function project(cfg, asOf, balance, cushion) {
+  const end = addDays(asOf, cfg.horizonDays);
+  const r0 = reserveAsOf(cfg, asOf);
+  let reserve = r0.total, operating = balance - reserve;
+  const fundReserve = { ...r0.per };
+  const events = [];
+  for (const pf of paydaysFlagged(cfg, asOf, end))
+    events.push(pf.funding ? { d: pf.d, t: "pay", name: "Paycheck" }
+                           : { d: pf.d, t: "skip", name: "Paycheck → auto insurance" });
+  let cur = new Date(asOf.getFullYear(), asOf.getMonth(), 1);
+  while (ms(cur) <= ms(end)) {
+    for (const b of cfg.bills) {
+      if (b.amount===0) continue;
+      const dt = clampDate(cur.getFullYear(), cur.getMonth(), b.day);
+      if (ms(dt) > ms(asOf) && ms(dt) <= ms(end)) events.push({ d:dt, t:"bill", name:b.name, amount:b.amount });
+    }
+    cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+  }
+  for (const f of cfg.sinkingFunds)
+    for (const c of chargeDates(f, asOf, end)) events.push({ d:c, t:"charge", name:f.name, fund:f });
+  const rank = { bill:0, charge:0, pay:1, skip:1 };
+  events.sort((a,b) => ms(a.d)-ms(b.d) || rank[a.t]-rank[b.t]);
+
+  const ledger = []; let minOp = operating, minDate = asOf;
+  for (const e of events) {
+    let credit=0, debit=0, note="";
+    if (e.t==="bill") { debit=e.amount; operating-=e.amount; }
+    else if (e.t==="pay") {
+      let contrib=0;
+      for (const f of cfg.sinkingFunds) {
+        const add = Math.min(f.contribution, Math.max(0, f.amount-(fundReserve[f.name]||0)));
+        fundReserve[f.name]=(fundReserve[f.name]||0)+add; reserve+=add; contrib+=add;
+      }
+      credit=cfg.paycheck; operating+=cfg.paycheck-contrib;
+      note = contrib ? `−${fmt0(contrib)} to sinking fund` : "";
+    } else if (e.t==="charge") {
+      const have=fundReserve[e.name]||0, short=Math.max(0, e.fund.amount-have);
+      fundReserve[e.name]=Math.max(0, have-e.fund.amount);
+      reserve-=Math.min(have, e.fund.amount); operating-=short; debit=e.fund.amount; note="paid from reserve";
+    } else if (e.t==="skip") {
+      note="3rd check this month — not deposited here";
+    }
+    if (operating < minOp) { minOp=operating; minDate=e.d; }
+    ledger.push({ date:e.d, name:e.name, credit, debit, note, balance:operating+reserve, operating });
+  }
+  const eom = clampDate(asOf.getFullYear(), asOf.getMonth(), 31);
+  const before = ledger.filter(r => ms(r.date) <= ms(eom));
+  const eomRow = before.length ? before[before.length-1] : { balance, operating: balance-reserve };
+  return {
+    reserve: r0.total, fundReserve: r0.per,
+    safeNow: Math.max(0, minOp - cushion),
+    lowPoint: minOp, lowDate: minDate,
+    eomBalance: eomRow.balance, eomDate: eom,
+    ledger,
+  };
+}
+
+// What you need to set aside, independent of current balance.
+function monthlyNeed(cfg) {
+  const bills = cfg.bills.reduce((s, b) => s + (b.amount || 0), 0);
+  const sinking = cfg.sinkingFunds.reduce((s, f) => s + (f.amount || 0) / (f.intervalMonths || 1), 0);
+  const total = bills + sinking;
+  const checksPerMonth = 2; // only 2 deposits/month fund this account (3rd check → auto insurance)
+  return { bills, sinking, total, checksPerMonth, perCheck: total / checksPerMonth };
+}
+
+// ---------- render ----------
+const $ = (id) => document.getElementById(id);
+function render() {
+  const bal = parseFloat($("bal").value) || 0;
+  const cush = parseFloat($("cush").value) || 0;
+  const asOf = $("asof").value ? D($("asof").value) : new Date();
+  const p = project(CONFIG, asOf, bal, cush);
+
+  $("safe").textContent = fmt0(p.safeNow);
+  $("safeExp").textContent = `After covering every bill through ${nice(addDays(asOf, CONFIG.horizonDays))}, `
+    + `keeping a ${fmt0(cush)} cushion and the ${fmt0(p.reserve)} sinking-fund reserve. `
+    + `Your tightest moment is ${fmt0(p.lowPoint)} on ${nice(p.lowDate)}.`;
+
+  $("sBal").textContent = fmt0(bal); $("sBalS").textContent = nice(asOf);
+  $("sRes").textContent = fmt0(p.reserve);
+  $("sResS").textContent = Object.entries(p.fundReserve).map(([k,v]) => `${k}: ${fmt0(v)}`).join(" · ") || "none yet";
+  $("sLow").textContent = fmt0(p.lowPoint); $("sLowS").textContent = nice(p.lowDate);
+  $("sEom").textContent = fmt0(p.eomBalance); $("sEomS").textContent = "by " + nice(p.eomDate);
+
+  const need = monthlyNeed(CONFIG);
+  $("perCheck").textContent = fmt0(need.perCheck);
+  const diff = CONFIG.paycheck - need.perCheck;
+  $("perCheckExp").innerHTML = `Your paycheck is ${fmt0(CONFIG.paycheck)} → `
+    + (diff >= 0 ? `<b style="color:var(--credit)">${fmt0(diff)} extra</b>` : `<b style="color:var(--debit)">${fmt0(-diff)} short</b>`)
+    + ` per check (2 deposits/month — 24/yr; 3rd-check months go to auto insurance).`;
+  $("nBills").textContent = fmt0(need.bills);
+  $("nSink").textContent = fmt0(need.sinking);
+  $("nTotal").textContent = fmt0(need.total);
+
+  const lb = $("ledger"); lb.innerHTML = "";
+  for (const r of p.ledger) {
+    const tr = document.createElement("tr");
+    const isLow = r.operating === p.lowPoint && ms(r.date) === ms(p.lowDate);
+    if (isLow) tr.className = "low";
+    const amt = r.credit ? `<span class="cre">+${fmt0(r.credit)}</span>`
+      : r.debit ? `<span class="deb">−${fmt0(r.debit)}</span>`
+      : `<span class="note">—</span>`;
+    const note = r.note ? ` <span class="note">${r.note}</span>` : (isLow ? ` <span class="pill">low point</span>` : "");
+    tr.innerHTML = `<td>${nice(r.date)}</td><td>${r.name}${note}</td><td class="num">${amt}</td><td class="num">${fmt(r.balance)}</td>`;
+    lb.appendChild(tr);
+  }
+
+  $("foot").innerHTML = `Bills already posted on the as-of date are assumed reflected in the balance you entered (only future-dated items are projected). `
+    + `Use <b>Edit bills &amp; timing</b> below to change amounts, due days, paydays, or sinking funds — your edits are saved in this browser.`;
+
+  updateCode();
+}
+
+// ---------- editor ----------
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+function flashSaved() { const s = $("ed-saved"); s.textContent = "Saved ✓"; s.classList.add("show"); clearTimeout(flashSaved._t); flashSaved._t = setTimeout(() => s.classList.remove("show"), 1200); }
+function commit(rebuild) { saveConfig(); render(); if (rebuild) buildEditor(); flashSaved(); }
+
+function mkField(label, type, value, setter) {
+  const f = el("div", "field");
+  const l = el("label"); l.textContent = label; f.appendChild(l);
+  const i = el("input"); i.type = type; i.value = value; if (type === "number") i.step = "any";
+  i.addEventListener("input", () => { setter(i.value); commit(false); });
+  f.appendChild(i); return f;
+}
+
+function buildEditor() {
+  $("ed-pay").value = CONFIG.paycheck;
+  $("ed-anchor").value = CONFIG.payAnchor;
+  $("ed-freq").value = CONFIG.payEveryDays;
+
+  const bc = $("ed-bills"); bc.innerHTML = "";
+  CONFIG.bills.forEach((b, idx) => {
+    const row = el("div", "ed-row");
+    const name = el("input"); name.type = "text"; name.value = b.name;
+    name.addEventListener("input", () => { b.name = name.value; commit(false); });
+    const amt = el("input"); amt.type = "number"; amt.step = "0.01"; amt.inputMode = "decimal"; amt.value = b.amount;
+    amt.addEventListener("input", () => { b.amount = parseFloat(amt.value) || 0; commit(false); });
+    const day = el("input"); day.type = "number"; day.min = "1"; day.max = "31"; day.value = b.day;
+    day.addEventListener("input", () => { b.day = Math.min(31, Math.max(1, parseInt(day.value) || 1)); commit(false); });
+    const del = el("button", "ed-del"); del.type = "button"; del.textContent = "×"; del.title = "Remove bill";
+    del.addEventListener("click", () => { CONFIG.bills.splice(idx, 1); commit(true); });
+    row.append(name, amt, day, del); bc.appendChild(row);
+  });
+
+  const fc = $("ed-funds"); fc.innerHTML = "";
+  CONFIG.sinkingFunds.forEach((f, idx) => {
+    const card = el("div", "ed-fund");
+    const head = el("div", "ed-fund-head");
+    const name = el("input"); name.type = "text"; name.value = f.name;
+    name.addEventListener("input", () => { f.name = name.value; commit(false); });
+    const del = el("button", "ed-del"); del.type = "button"; del.textContent = "×"; del.title = "Remove fund";
+    del.addEventListener("click", () => { CONFIG.sinkingFunds.splice(idx, 1); commit(true); });
+    head.append(name, del); card.appendChild(head);
+    const grid = el("div", "ed-fund-grid");
+    grid.appendChild(mkField("Total charge ($)", "number", f.amount, v => { f.amount = parseFloat(v) || 0; }));
+    grid.appendChild(mkField("Save per check ($)", "number", f.contribution, v => { f.contribution = parseFloat(v) || 0; }));
+    grid.appendChild(mkField("Last charge", "date", f.lastCharge, v => { if (v) f.lastCharge = v; }));
+    grid.appendChild(mkField("Every (months)", "number", f.intervalMonths, v => { f.intervalMonths = parseInt(v) || 1; }));
+    card.appendChild(grid); fc.appendChild(card);
+  });
+}
+
+$("ed-pay").addEventListener("input", () => { CONFIG.paycheck = parseFloat($("ed-pay").value) || 0; commit(false); });
+$("ed-anchor").addEventListener("input", () => { if ($("ed-anchor").value) { CONFIG.payAnchor = $("ed-anchor").value; commit(false); } });
+$("ed-freq").addEventListener("input", () => { CONFIG.payEveryDays = Math.max(1, parseInt($("ed-freq").value) || 14); commit(false); });
+$("ed-addbill").addEventListener("click", () => { CONFIG.bills.push({ name: "New bill", amount: 0, day: 1 }); commit(true); });
+$("ed-addfund").addEventListener("click", () => { CONFIG.sinkingFunds.push({ name: "New fund", amount: 0, contribution: 0, lastCharge: isoLocal(new Date()), intervalMonths: 6 }); commit(true); });
+$("ed-reset").addEventListener("click", () => { CONFIG = clone(DEFAULTS); saveConfig(); buildEditor(); render(); flashSaved(); });
+
+// ---------- cross-device sync code ----------
+function encodeCfg() { return btoa(unescape(encodeURIComponent(JSON.stringify(CONFIG)))); }
+function updateCode() { const t = $("ed-code"); if (t && document.activeElement !== t) t.value = encodeCfg(); }
+function codeMsg(m) { const s = $("ed-codemsg"); s.textContent = m; clearTimeout(codeMsg._t); codeMsg._t = setTimeout(() => s.textContent = "", 2000); }
+$("ed-copy").addEventListener("click", async () => {
+  const t = $("ed-code"); t.value = encodeCfg(); t.focus(); t.select(); t.setSelectionRange(0, t.value.length);
+  try { await navigator.clipboard.writeText(t.value); codeMsg("Copied ✓"); }
+  catch (e) { try { document.execCommand("copy"); codeMsg("Copied ✓"); } catch (e2) { codeMsg("Selected — long-press to copy"); } }
+});
+$("ed-applycode").addEventListener("click", () => {
+  try {
+    const obj = JSON.parse(decodeURIComponent(escape(atob($("ed-code").value.trim()))));
+    if (!Array.isArray(obj.bills) || !Array.isArray(obj.sinkingFunds)) throw new Error("bad");
+    CONFIG = Object.assign(clone(DEFAULTS), obj);
+    saveConfig(); buildEditor(); render(); codeMsg("Applied ✓");
+  } catch (e) { codeMsg("Couldn't read that code"); }
+});
+
+// default as-of = today
+$("asof").value = isoLocal(new Date());
+["bal","asof","cush"].forEach(id => $(id).addEventListener("input", render));
+buildEditor();
+render();
+</script>
+</body>
+</html>
