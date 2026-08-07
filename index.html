@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Rent &amp; Bills — Safe to Spend</title>
+<title>Personal Finance Tools</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Bills">
+<meta name="apple-mobile-web-app-title" content="Finance">
 <meta name="theme-color" content="#1a7f4b">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a7f4b'/%3E%3Ctext x='32' y='45' font-size='40' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3E%24%3C/text%3E%3C/svg%3E">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a7f4b'/%3E%3Ctext x='32' y='45' font-size='40' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'%3E%24%3C/text%3E%3C/svg%3E">
@@ -69,6 +69,10 @@
   .pill{display:inline-block;font-size:.68rem;background:var(--warn-soft);color:var(--warn);padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:600}
   .note{color:var(--muted);font-size:.72rem}
   .foot{color:var(--muted);font-size:.78rem;margin-top:22px;line-height:1.5}
+  .tool-switch{display:flex;gap:8px;margin:0 0 16px;background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:14px;padding:5px;box-shadow:var(--shadow)}
+  .tool-tab{flex:1;border:0;background:transparent;color:var(--muted);border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer}
+  .tool-tab.active{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(20,30,50,.08)}
+  .tool-view[hidden]{display:none}
   .editor{padding:16px}
   .ed-sec{margin-bottom:20px}
   .ed-h{font-weight:650;font-size:.96rem;margin-bottom:9px}
@@ -94,17 +98,72 @@
   .ed-copy,.ed-apply{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;border-radius:9px;cursor:pointer;font-size:.85rem;font-weight:600}
   .ed-apply{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   #ed-codemsg{color:var(--accent);font-weight:600}
+  .trade-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+  .trade-head h1{margin-top:0}
+  .trade-grid{display:block}
+  .trade-form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .trade-form .wide{grid-column:1/-1}
+  .trade-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  .trade-metric{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfe}
+  .trade-metric .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:5px}
+  .trade-metric .v{font-size:1.35rem;font-weight:760;font-variant-numeric:tabular-nums}
+  .trade-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .trade-btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 13px;border-radius:9px;cursor:pointer;font-size:.85rem;font-weight:700}
+  .trade-btn.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .trade-btn.danger{color:var(--debit)}
+  .trade-file{display:none}
+  .trade-log{margin-top:16px}
+  .trade-log .panel{border-top:1px solid var(--line);border-radius:14px;margin-top:0;padding:4px;max-height:360px;overflow:auto}
+  .trade-log td{vertical-align:top}
+  .trade-log .muted{color:var(--muted);font-size:.78rem}
+  .trade-log button{border:1px solid var(--line);background:#fff;color:var(--debit);border-radius:7px;cursor:pointer;padding:4px 8px;font-weight:700}
+  .trade-edit{width:100%;min-width:72px;border:1px solid var(--line);border-radius:7px;padding:6px 7px;background:#fbfcfe;color:var(--ink);font-size:.8rem}
+  .trade-edit.ticker{min-width:68px;text-transform:uppercase;font-weight:700}
+  .trade-edit.notes{min-width:150px}
+  .trade-sell{display:grid;grid-template-columns:82px 112px;gap:5px}
+  .trade-stops{min-width:118px;font-size:.78rem;line-height:1.45;color:var(--muted)}
+  .trade-stops b{display:block;color:var(--ink);font-variant-numeric:tabular-nums}
+  .calendar-wrap{margin-top:16px}
+  .trade-backup{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .trade-backup-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:start}
+  .cal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+  .cal-title{font-weight:760}
+  .cal-nav{display:flex;gap:6px}
+  .cal-nav button{width:34px;height:32px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .cal-dow{font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;text-align:center;padding:4px}
+  .cal-day{min-height:70px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;font-size:.78rem}
+  .cal-day.off{opacity:.42}
+  .cal-date{color:var(--muted);font-weight:700}
+  .cal-pnl{margin-top:9px;font-weight:800;font-variant-numeric:tabular-nums}
+  .cal-pnl.pos{color:var(--credit)}
+  .cal-pnl.neg{color:var(--debit)}
+  .import-note{margin-top:10px;line-height:1.45}
   @media(max-width:620px){
     .inputs{grid-template-columns:1fr 1fr}
     .stats{grid-template-columns:1fr 1fr}
     .hero .big{font-size:2.4rem}
     h1{font-size:1.3rem}
     .ed-income{grid-template-columns:1fr}
+    .tool-switch{position:sticky;top:6px;z-index:3}
+    .trade-head{display:block}
+    .trade-form,.trade-summary{grid-template-columns:1fr}
+    .trade-backup-row{grid-template-columns:1fr}
+    .trade-sell{grid-template-columns:1fr}
+    .trade-stops{min-width:96px}
+    .calendar{gap:3px}
+    .cal-day{min-height:58px;padding:5px;font-size:.72rem}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="tool-switch" role="tablist" aria-label="Finance tools">
+    <button class="tool-tab active" id="tab-bills" type="button" role="tab" aria-selected="true" aria-controls="billsTool">Bills</button>
+    <button class="tool-tab" id="tab-trades" type="button" role="tab" aria-selected="false" aria-controls="tradesTool">Trade Log</button>
+  </div>
+
+  <section id="billsTool" class="tool-view" role="tabpanel" aria-labelledby="tab-bills">
   <h1>Rent &amp; Bills — Safe to Spend</h1>
   <p class="sub">Enter your balance to see what's extra after every upcoming bill is covered. Paste your sync code below to load your bills.</p>
 
@@ -200,6 +259,78 @@
   </details>
 
   <p class="foot" id="foot"></p>
+  </section>
+
+  <section id="tradesTool" class="tool-view" role="tabpanel" aria-labelledby="tab-trades" hidden>
+    <div class="trade-head">
+      <div>
+        <h1>Stock Trade Log</h1>
+        <p class="sub">Size entries from risk, plan the 75% EMA 8 sell, and track realized gains or losses by day.</p>
+      </div>
+    </div>
+
+    <div class="trade-grid">
+      <div class="card">
+        <div class="ed-h">Position size</div>
+        <div class="trade-form">
+          <div class="field"><label for="tr-date">Entry date</label><input id="tr-date" type="date"></div>
+          <div class="field"><label for="tr-ticker">Ticker</label><input id="tr-ticker" type="text" placeholder="AAPL" autocapitalize="characters"></div>
+          <div class="field"><label for="tr-entry">Entry price ($)</label><input id="tr-entry" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
+          <div class="field"><label for="tr-stop">Stop loss price ($)</label><input id="tr-stop" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
+          <div class="field"><label for="tr-risk">Max loss ($)</label><input id="tr-risk" type="number" inputmode="decimal" step="10" value="300"></div>
+          <div class="field"><label for="tr-ema-price">EMA 8 sell price ($)</label><input id="tr-ema-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
+          <div class="field"><label for="tr-ema-date">EMA 8 sell date</label><input id="tr-ema-date" type="date"></div>
+          <div class="field"><label for="tr-final-price">Final exit price ($)</label><input id="tr-final-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
+          <div class="field"><label for="tr-final-date">Final exit date</label><input id="tr-final-date" type="date"></div>
+          <div class="field wide"><label for="tr-notes">Notes</label><input id="tr-notes" type="text" placeholder="Setup, trigger, lesson"></div>
+        </div>
+        <div class="trade-summary">
+          <div class="trade-metric"><div class="k">Shares to buy</div><div class="v" id="tr-shares">0</div></div>
+          <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
+          <div class="trade-metric"><div class="k">Sell on EMA 8 break</div><div class="v" id="tr-partial">0</div></div>
+          <div class="trade-metric"><div class="k">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
+          <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
+          <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
+          <div class="trade-metric"><div class="k">Breakeven stop after EMA</div><div class="v" id="tr-be-stop">—</div></div>
+          <div class="trade-metric"><div class="k">Max-loss stop after EMA</div><div class="v" id="tr-loss-stop">—</div></div>
+        </div>
+        <div class="trade-actions">
+          <button class="trade-btn primary" id="tr-add" type="button">Add to log</button>
+          <button class="trade-btn" id="tr-export" type="button">Export CSV</button>
+          <button class="trade-btn" id="tr-import" type="button">Import Fidelity CSV</button>
+          <input class="trade-file" id="tr-file" type="file" accept=".csv,text/csv">
+          <button class="trade-btn danger" id="tr-clear" type="button">Clear log</button>
+        </div>
+        <div class="trade-backup">
+          <div class="ed-h">Trade log backup</div>
+          <div class="trade-backup-row">
+            <textarea id="tr-code" class="ed-codebox" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+            <button class="trade-btn" id="tr-copy-code" type="button">Copy code</button>
+            <button class="trade-btn primary" id="tr-apply-code" type="button">Apply code</button>
+          </div>
+        </div>
+        <p class="note import-note" id="tr-msg">Fidelity imports are stored locally in this browser. Common Symbol, Date, Action, Quantity, Price, Amount, and Gain/Loss columns are mapped automatically.</p>
+      </div>
+    </div>
+
+    <div class="trade-log">
+      <div class="panel"><table>
+        <thead><tr><th>Date</th><th>Ticker</th><th class="num">Entry</th><th class="num">Stop</th><th class="num">Shares</th><th class="num">Risk</th><th>EMA 8 Sell</th><th>After EMA Stops</th><th>Final Sell</th><th class="num">Realized</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="tr-log"></tbody>
+      </table></div>
+    </div>
+
+    <div class="card calendar-wrap">
+      <div class="cal-head">
+        <div class="cal-title" id="tr-cal-title">Month</div>
+        <div class="cal-nav">
+          <button id="tr-prev" type="button" aria-label="Previous month">&lt;</button>
+          <button id="tr-next" type="button" aria-label="Next month">&gt;</button>
+        </div>
+      </div>
+      <div class="calendar" id="tr-calendar"></div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -344,6 +475,20 @@ function monthlyNeed(cfg) {
 
 // ---------- render ----------
 const $ = (id) => document.getElementById(id);
+
+function showTool(name) {
+  const bills = name === "bills";
+  $("billsTool").hidden = !bills;
+  $("tradesTool").hidden = bills;
+  $("tab-bills").classList.toggle("active", bills);
+  $("tab-trades").classList.toggle("active", !bills);
+  $("tab-bills").setAttribute("aria-selected", bills ? "true" : "false");
+  $("tab-trades").setAttribute("aria-selected", bills ? "false" : "true");
+  try { localStorage.setItem("financeActiveTool.v1", name); } catch (e) {}
+}
+$("tab-bills").addEventListener("click", () => showTool("bills"));
+$("tab-trades").addEventListener("click", () => showTool("trades"));
+
 function render() {
   const bal = parseFloat($("bal").value) || 0;
   const cush = parseFloat($("cush").value) || 0;
@@ -404,6 +549,397 @@ function render() {
     + `Use <b>Edit bills &amp; timing</b> below to change amounts, due days, paydays, or sinking funds — your edits are saved in this browser.`;
 
   updateCode();
+}
+
+// ---------- trade log ----------
+const TRADE_STORE_KEY = "stockTradeLog.v1";
+const TRADE_DEFAULT_RISK = 300;
+let TRADE_LOG = loadTrades();
+let TRADE_CAL = new Date();
+
+function parseMoney(v) {
+  if (v === null || v === undefined) return 0;
+  const s = String(v).trim();
+  if (!s) return 0;
+  const neg = /^\(.*\)$/.test(s) || /^-/.test(s);
+  const n = parseFloat(s.replace(/[$,%(),]/g, ""));
+  if (!Number.isFinite(n)) return 0;
+  return neg ? -Math.abs(n) : n;
+}
+function loadTrades() {
+  try {
+    const s = localStorage.getItem(TRADE_STORE_KEY);
+    if (s) return JSON.parse(s);
+  } catch (e) {}
+  return [];
+}
+function saveTrades() {
+  try { localStorage.setItem(TRADE_STORE_KEY, JSON.stringify(TRADE_LOG)); } catch (e) {}
+  updateTradeCode();
+}
+function tradeMsg(msg) {
+  const elMsg = $("tr-msg");
+  elMsg.textContent = msg;
+  clearTimeout(tradeMsg._t);
+  tradeMsg._t = setTimeout(() => {
+    elMsg.textContent = "Fidelity imports are stored locally in this browser. Common Symbol, Date, Action, Quantity, Price, Amount, and Gain/Loss columns are mapped automatically.";
+  }, 3600);
+}
+function parseLocalDateValue(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (m) {
+    const y = Number(m[3].length === 2 ? "20" + m[3] : m[3]);
+    return `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : isoLocal(d);
+}
+function afterEmaStops(entry, maxLoss, shares, partialShares, partialPrice) {
+  const remainingShares = shares - partialShares;
+  if (entry <= 0 || maxLoss <= 0 || shares <= 0 || partialShares <= 0 || partialPrice <= 0 || remainingShares <= 0) {
+    return { breakEvenStop: NaN, maxLossStop: NaN, partialPnl: 0, remainingShares: Math.max(0, remainingShares) };
+  }
+  const partialPnl = (partialPrice - entry) * partialShares;
+  return {
+    breakEvenStop: entry - (partialPnl / remainingShares),
+    maxLossStop: entry + ((-maxLoss - partialPnl) / remainingShares),
+    partialPnl,
+    remainingShares,
+  };
+}
+function fmtStop(n) {
+  if (!Number.isFinite(n)) return "—";
+  if (n <= 0) return "Below $0";
+  return fmt(n);
+}
+function calcTradePlan() {
+  const entry = parseMoney($("tr-entry").value);
+  const stop = parseMoney($("tr-stop").value);
+  const maxLoss = parseMoney($("tr-risk").value) || TRADE_DEFAULT_RISK;
+  const riskPerShare = entry - stop;
+  const emaPrice = parseMoney($("tr-ema-price").value);
+  const sellPrice = emaPrice || entry;
+  if (entry <= 0 || stop <= 0 || riskPerShare <= 0 || maxLoss <= 0) {
+    return { entry, stop, maxLoss, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN };
+  }
+  const rawShares = maxLoss / riskPerShare;
+  const shares = Math.floor(rawShares);
+  const partialShares = Math.floor(shares * 0.75);
+  const remainingShares = shares - partialShares;
+  const stops = afterEmaStops(entry, maxLoss, shares, partialShares, emaPrice);
+  return {
+    entry, stop, maxLoss, riskPerShare, shares, rawShares,
+    cost: shares * entry,
+    partialShares,
+    partialDollars: partialShares * sellPrice,
+    remainingShares,
+    plannedRisk: shares * riskPerShare,
+    breakEvenStop: stops.breakEvenStop,
+    maxLossStop: stops.maxLossStop,
+  };
+}
+function renderTradePlan() {
+  const p = calcTradePlan();
+  $("tr-shares").textContent = p.shares.toLocaleString("en-US");
+  $("tr-cost").textContent = fmt0(p.cost);
+  $("tr-partial").textContent = p.partialShares.toLocaleString("en-US");
+  $("tr-partial-dollars").textContent = fmt0(p.partialDollars);
+  $("tr-remaining").textContent = p.remainingShares.toLocaleString("en-US");
+  $("tr-planned-risk").textContent = fmt0(p.plannedRisk);
+  $("tr-be-stop").textContent = fmtStop(p.breakEvenStop);
+  $("tr-loss-stop").textContent = fmtStop(p.maxLossStop);
+}
+function tradeRealized(t) {
+  if (Number.isFinite(t.realizedPnl)) return t.realizedPnl;
+  let pnl = 0;
+  if (t.partialPrice && t.partialDate) pnl += (t.partialPrice - t.entry) * t.partialShares;
+  if (t.finalExitPrice && t.finalDate) pnl += (t.finalExitPrice - t.entry) * (t.partialPrice && t.partialDate ? t.remainingShares : t.shares);
+  return pnl;
+}
+function tradeEvents(t) {
+  const out = [];
+  if (Number.isFinite(t.realizedPnl) && t.date) out.push({ date: t.date, ticker: t.ticker, pnl: t.realizedPnl });
+  if (t.partialPrice && t.partialDate) out.push({ date: t.partialDate, ticker: t.ticker, pnl: (t.partialPrice - t.entry) * t.partialShares });
+  if (t.finalExitPrice && t.finalDate) out.push({ date: t.finalDate, ticker: t.ticker, pnl: (t.finalExitPrice - t.entry) * (t.partialPrice && t.partialDate ? t.remainingShares : t.shares) });
+  return out;
+}
+function htmlEscape(v) {
+  return String(v === null || v === undefined ? "" : v).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function recalcTrade(t) {
+  t.ticker = String(t.ticker || "").trim().toUpperCase();
+  t.entry = Number(t.entry) || 0;
+  t.stop = Number(t.stop) || 0;
+  t.shares = Math.max(0, Math.floor(Number(t.shares) || 0));
+  t.partialShares = Math.max(0, Math.min(t.shares, Math.floor(Number(t.partialShares) || Math.floor(t.shares * 0.75))));
+  t.partialPrice = Number(t.partialPrice) || 0;
+  t.finalExitPrice = Number(t.finalExitPrice) || 0;
+  t.remainingShares = t.partialPrice && t.partialDate ? Math.max(0, t.shares - t.partialShares) : t.shares;
+  if (t.entry > 0 && t.stop > 0 && t.entry > t.stop && t.shares > 0) t.plannedRisk = t.shares * (t.entry - t.stop);
+  else t.plannedRisk = Number(t.plannedRisk) || 0;
+  if (!t.partialPrice) t.partialDate = "";
+  if (!t.finalExitPrice) t.finalDate = "";
+}
+function updateTradeField(id, field, value, type) {
+  const t = TRADE_LOG.find(x => x.id === id);
+  if (!t) return;
+  if (type === "money") t[field] = parseMoney(value);
+  else if (type === "shares") t[field] = Math.max(0, Math.floor(parseMoney(value)));
+  else if (field === "ticker") t[field] = String(value || "").trim().toUpperCase();
+  else t[field] = value;
+  if (["entry","stop","shares","partialShares","partialPrice","partialDate","finalExitPrice","finalDate","ticker"].includes(field)) recalcTrade(t);
+  saveTrades();
+  renderTradeLog();
+  renderTradeCalendar();
+}
+function tradeInput(t, field, type, cls, label) {
+  const input = document.createElement("input");
+  input.className = `trade-edit ${cls || ""}`.trim();
+  input.type = type === "date" ? "date" : (type === "text" ? "text" : "number");
+  if (input.type === "number") { input.step = type === "shares" ? "1" : "0.01"; input.inputMode = "decimal"; }
+  input.setAttribute("aria-label", label);
+  input.value = t[field] || "";
+  input.addEventListener("change", () => updateTradeField(t.id, field, input.value, type));
+  input.addEventListener("blur", () => updateTradeField(t.id, field, input.value, type));
+  return input;
+}
+function appendCell(row, child, cls) {
+  const td = document.createElement("td");
+  if (cls) td.className = cls;
+  if (child instanceof Node) td.appendChild(child);
+  else td.innerHTML = child;
+  row.appendChild(td);
+  return td;
+}
+function sellCell(t, priceField, dateField, label) {
+  const box = document.createElement("div");
+  box.className = "trade-sell";
+  box.appendChild(tradeInput(t, priceField, "money", "", `${label} price`));
+  box.appendChild(tradeInput(t, dateField, "date", "", `${label} date`));
+  return box;
+}
+function afterEmaStopsCell(t) {
+  const maxLoss = t.maxLoss || TRADE_DEFAULT_RISK;
+  const stops = afterEmaStops(t.entry, maxLoss, t.shares, t.partialShares, t.partialPrice);
+  const box = document.createElement("div");
+  box.className = "trade-stops";
+  const beLabel = document.createElement("span");
+  beLabel.textContent = "B/E";
+  const be = document.createElement("b");
+  be.textContent = fmtStop(stops.breakEvenStop);
+  const lossLabel = document.createElement("span");
+  lossLabel.textContent = `-${fmt0(maxLoss)}`;
+  const loss = document.createElement("b");
+  loss.textContent = fmtStop(stops.maxLossStop);
+  box.append(beLabel, be, lossLabel, loss);
+  return box;
+}
+function renderTradeLog() {
+  const body = $("tr-log");
+  body.innerHTML = "";
+  const rows = TRADE_LOG.slice().sort((a,b) => (b.date || "").localeCompare(a.date || ""));
+  for (const t of rows) {
+    recalcTrade(t);
+    const tr = document.createElement("tr");
+    const realized = tradeRealized(t);
+    appendCell(tr, tradeInput(t, "date", "date", "", "Trade date"));
+    appendCell(tr, tradeInput(t, "ticker", "text", "ticker", "Ticker"));
+    appendCell(tr, tradeInput(t, "entry", "money", "", "Entry price"), "num");
+    appendCell(tr, tradeInput(t, "stop", "money", "", "Stop loss price"), "num");
+    appendCell(tr, tradeInput(t, "shares", "shares", "", "Shares"), "num");
+    appendCell(tr, t.plannedRisk ? fmt(t.plannedRisk) : "", "num");
+    appendCell(tr, sellCell(t, "partialPrice", "partialDate", "EMA 8 sell"));
+    appendCell(tr, afterEmaStopsCell(t));
+    appendCell(tr, sellCell(t, "finalExitPrice", "finalDate", "Final sell"));
+    appendCell(tr, realized ? fmt(realized) : "", `num ${realized >= 0 ? "cre" : "deb"}`);
+    const notesBox = document.createElement("div");
+    if (t.source === "fidelity" || t.action) {
+      const prefix = document.createElement("div");
+      prefix.className = "muted";
+      prefix.textContent = [t.source === "fidelity" ? "Fidelity import" : "", t.action || ""].filter(Boolean).join(" · ");
+      notesBox.appendChild(prefix);
+    }
+    notesBox.appendChild(tradeInput(t, "notes", "text", "notes", "Notes"));
+    appendCell(tr, notesBox);
+    const del = document.createElement("button");
+    del.type = "button";
+    del.textContent = "x";
+    del.dataset.del = t.id;
+    appendCell(tr, del);
+    body.appendChild(tr);
+  }
+  body.querySelectorAll("button[data-del]").forEach(btn => btn.addEventListener("click", () => {
+    TRADE_LOG = TRADE_LOG.filter(t => t.id !== btn.dataset.del);
+    saveTrades();
+    renderTrades();
+  }));
+}
+function renderTradeCalendar() {
+  const cal = $("tr-calendar");
+  cal.innerHTML = "";
+  const y = TRADE_CAL.getFullYear(), m = TRADE_CAL.getMonth();
+  $("tr-cal-title").textContent = TRADE_CAL.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d => {
+    const h = document.createElement("div");
+    h.className = "cal-dow";
+    h.textContent = d;
+    cal.appendChild(h);
+  });
+  const daily = {};
+  for (const t of TRADE_LOG) for (const e of tradeEvents(t)) daily[e.date] = (daily[e.date] || 0) + e.pnl;
+  const first = new Date(y, m, 1);
+  const start = new Date(y, m, 1 - first.getDay());
+  for (let i = 0; i < 42; i++) {
+    const d = addDays(start, i);
+    const iso = isoLocal(d);
+    const pnl = daily[iso] || 0;
+    const cell = document.createElement("div");
+    cell.className = "cal-day" + (d.getMonth() === m ? "" : " off");
+    cell.innerHTML = `<div class="cal-date">${d.getDate()}</div>` + (pnl ? `<div class="cal-pnl ${pnl >= 0 ? "pos" : "neg"}">${fmt0(pnl)}</div>` : "");
+    cal.appendChild(cell);
+  }
+}
+function renderTrades() {
+  renderTradePlan();
+  renderTradeLog();
+  renderTradeCalendar();
+  updateTradeCode();
+}
+function addTrade() {
+  const p = calcTradePlan();
+  const ticker = $("tr-ticker").value.trim().toUpperCase();
+  if (!ticker || p.shares <= 0) { tradeMsg("Enter a ticker, entry price, and stop below entry before adding."); return; }
+  const partialPrice = parseMoney($("tr-ema-price").value);
+  const finalExitPrice = parseMoney($("tr-final-price").value);
+  const trade = {
+    id: String(Date.now()) + Math.random().toString(16).slice(2),
+    source: "manual",
+    date: $("tr-date").value || isoLocal(new Date()),
+    ticker,
+    entry: p.entry,
+    stop: p.stop,
+    maxLoss: p.maxLoss,
+    shares: p.shares,
+    partialShares: p.partialShares,
+    remainingShares: p.remainingShares,
+    plannedRisk: p.plannedRisk,
+    partialPrice: partialPrice || 0,
+    partialDate: partialPrice ? ($("tr-ema-date").value || $("tr-date").value || isoLocal(new Date())) : "",
+    finalExitPrice: finalExitPrice || 0,
+    finalDate: finalExitPrice ? ($("tr-final-date").value || $("tr-date").value || isoLocal(new Date())) : "",
+    notes: $("tr-notes").value.trim(),
+  };
+  TRADE_LOG.push(trade);
+  saveTrades();
+  renderTrades();
+  tradeMsg(`${ticker} added to the log.`);
+}
+function csvEscape(v) {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function exportTrades() {
+  const headers = ["date","ticker","source","action","entry","stop","shares","plannedRisk","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","notes"];
+  const lines = [headers.join(",")].concat(TRADE_LOG.map(t => headers.map(h => csvEscape(t[h] || "")).join(",")));
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `trade-log-${isoLocal(new Date())}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function encodeTrades() {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(TRADE_LOG))));
+}
+function updateTradeCode() {
+  const t = $("tr-code");
+  if (t && document.activeElement !== t) t.value = encodeTrades();
+}
+function applyTradeCode() {
+  try {
+    const obj = JSON.parse(decodeURIComponent(escape(atob($("tr-code").value.trim()))));
+    if (!Array.isArray(obj)) throw new Error("bad");
+    TRADE_LOG = obj.map(t => Object.assign({ id: String(Date.now()) + Math.random().toString(16).slice(2) }, t));
+    for (const t of TRADE_LOG) { if (!t.id) t.id = String(Date.now()) + Math.random().toString(16).slice(2); recalcTrade(t); }
+    saveTrades();
+    renderTrades();
+    tradeMsg("Trade log backup applied.");
+  } catch (e) { tradeMsg("Couldn't read that trade log code."); }
+}
+async function copyTradeCode() {
+  const t = $("tr-code");
+  t.value = encodeTrades();
+  t.focus();
+  t.select();
+  t.setSelectionRange(0, t.value.length);
+  try { await navigator.clipboard.writeText(t.value); tradeMsg("Trade log code copied."); }
+  catch (e) { try { document.execCommand("copy"); tradeMsg("Trade log code copied."); } catch (e2) { tradeMsg("Selected - long-press to copy."); } }
+}
+function parseCsv(text) {
+  const rows = []; let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], n = text[i+1];
+    if (q && c === '"' && n === '"') { field += '"'; i++; }
+    else if (c === '"') q = !q;
+    else if (!q && c === ",") { row.push(field); field = ""; }
+    else if (!q && (c === "\n" || c === "\r")) {
+      if (c === "\r" && n === "\n") i++;
+      row.push(field); field = "";
+      if (row.some(x => x.trim())) rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  row.push(field);
+  if (row.some(x => x.trim())) rows.push(row);
+  if (!rows.length) return [];
+  const headers = rows.shift().map(h => h.trim());
+  return rows.map(r => Object.fromEntries(headers.map((h, i) => [h, r[i] || ""])));
+}
+function findCsvValue(row, names) {
+  const keys = Object.keys(row);
+  for (const name of names) {
+    const found = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, "") === name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    if (found && row[found] !== "") return row[found];
+  }
+  return "";
+}
+async function importTrades(file) {
+  if (!file) return;
+  const rows = parseCsv(await file.text());
+  let added = 0;
+  for (const row of rows) {
+    const ticker = String(findCsvValue(row, ["symbol", "ticker", "security symbol"])).trim().toUpperCase();
+    if (!ticker) continue;
+    const date = parseLocalDateValue(findCsvValue(row, ["trade date", "run date", "settlement date", "date"])) || isoLocal(new Date());
+    const action = String(findCsvValue(row, ["action", "transaction type", "type", "description"])).trim();
+    const shares = Math.abs(parseMoney(findCsvValue(row, ["quantity", "shares", "qty"])));
+    const price = parseMoney(findCsvValue(row, ["price", "price ($)", "execution price", "avg price"]));
+    const amount = parseMoney(findCsvValue(row, ["amount", "net amount", "principal", "proceeds"]));
+    const gain = findCsvValue(row, ["realized gain/loss", "realized gain loss", "gain/loss", "gain loss", "short term gain/loss", "long term gain/loss"]);
+    TRADE_LOG.push({
+      id: String(Date.now()) + Math.random().toString(16).slice(2),
+      source: "fidelity",
+      date,
+      ticker,
+      action,
+      entry: /buy/i.test(action) ? price : 0,
+      stop: 0,
+      shares,
+      plannedRisk: 0,
+      partialShares: 0,
+      remainingShares: 0,
+      realizedPnl: gain === "" ? NaN : parseMoney(gain),
+      notes: amount ? `Amount ${fmt(amount)}` : "",
+    });
+    added++;
+  }
+  saveTrades();
+  renderTrades();
+  tradeMsg(added ? `Imported ${added} Fidelity row${added === 1 ? "" : "s"}.` : "No ticker rows found in that CSV.");
+  $("tr-file").value = "";
 }
 
 // ---------- editor ----------
@@ -484,8 +1020,32 @@ $("ed-applycode").addEventListener("click", () => {
 // default as-of = today
 $("asof").value = isoLocal(new Date());
 ["bal","asof","cush"].forEach(id => $(id).addEventListener("input", render));
+const todayIso = isoLocal(new Date());
+$("tr-date").value = todayIso;
+$("tr-ema-date").value = todayIso;
+$("tr-final-date").value = todayIso;
+["tr-entry","tr-stop","tr-risk","tr-ema-price"].forEach(id => $(id).addEventListener("input", renderTradePlan));
+$("tr-add").addEventListener("click", addTrade);
+$("tr-export").addEventListener("click", exportTrades);
+$("tr-import").addEventListener("click", () => $("tr-file").click());
+$("tr-file").addEventListener("change", () => importTrades($("tr-file").files[0]));
+$("tr-copy-code").addEventListener("click", copyTradeCode);
+$("tr-apply-code").addEventListener("click", applyTradeCode);
+$("tr-clear").addEventListener("click", () => {
+  if (!TRADE_LOG.length) { tradeMsg("The trade log is already empty."); return; }
+  if (confirm("Clear the entire trade log from this browser?")) {
+    TRADE_LOG = [];
+    saveTrades();
+    renderTrades();
+    tradeMsg("Trade log cleared.");
+  }
+});
+$("tr-prev").addEventListener("click", () => { TRADE_CAL = new Date(TRADE_CAL.getFullYear(), TRADE_CAL.getMonth()-1, 1); renderTradeCalendar(); });
+$("tr-next").addEventListener("click", () => { TRADE_CAL = new Date(TRADE_CAL.getFullYear(), TRADE_CAL.getMonth()+1, 1); renderTradeCalendar(); });
 buildEditor();
 render();
+renderTrades();
+try { showTool(localStorage.getItem("financeActiveTool.v1") === "trades" ? "trades" : "bills"); } catch (e) {}
 </script>
 </body>
 </html>
