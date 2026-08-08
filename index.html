@@ -100,14 +100,28 @@
   #ed-codemsg{color:var(--accent);font-weight:600}
   .trade-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
   .trade-head h1{margin-top:0}
-  .trade-grid{display:block}
-  .trade-form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .trade-grid{display:grid;gap:14px}
+  .calculator-card{padding:0;overflow:hidden}
+  .calc-banner{background:linear-gradient(135deg,#0f172a,#1f7a56);color:#fff;padding:18px}
+  .calc-banner .ed-h{margin:0 0 4px;font-size:1.05rem}
+  .calc-banner .note{color:rgba(255,255,255,.78);margin:0;max-width:54ch}
+  .calc-body{padding:18px}
+  .trade-form{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .trade-form .wide{grid-column:1/-1}
-  .trade-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  .trade-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
   .trade-metric{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfe}
   .trade-metric .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:5px}
   .trade-metric .v{font-size:1.35rem;font-weight:760;font-variant-numeric:tabular-nums}
-  .trade-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .trade-metric.primary{background:var(--accent-soft);border-color:#bee6d0}
+  .trade-metric.primary .v{color:var(--accent)}
+  .trade-metric.pnl.pos{background:var(--accent-soft);border-color:#bee6d0}
+  .trade-metric.pnl.pos .v{color:var(--credit)}
+  .trade-metric.pnl.neg{background:#fdecea;border-color:#f1b9b2}
+  .trade-metric.pnl.neg .v{color:var(--debit)}
+  .data-card .ed-h{margin-bottom:4px}
+  .data-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+  .data-top .note{margin:0;max-width:52ch;line-height:1.45}
+  .trade-actions{display:flex;flex-wrap:wrap;gap:10px}
   .trade-btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 13px;border-radius:9px;cursor:pointer;font-size:.85rem;font-weight:700}
   .trade-btn.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .trade-btn.danger{color:var(--debit)}
@@ -161,6 +175,8 @@
     .tool-switch{position:sticky;top:6px;z-index:3}
     .trade-head{display:block}
     .trade-form,.trade-summary{grid-template-columns:1fr}
+    .data-top{display:block}
+    .data-top .note{margin-top:4px}
     .trade-backup-row{grid-template-columns:1fr}
     .trade-sell{grid-template-columns:1fr}
     .trade-stops{min-width:96px}
@@ -281,42 +297,52 @@
   <section id="tradesTool" class="tool-view" role="tabpanel" aria-labelledby="tab-trades">
     <div class="trade-head">
       <div>
-        <h1>Stock Trade Log</h1>
-        <p class="sub">Size entries from risk, plan the EMA 8 partial sell, and track realized gains or losses by day.</p>
+        <h1>Trade Planner</h1>
+        <p class="sub">Size the entry from your risk, plan the EMA 8 partial, and review imported results by day.</p>
       </div>
     </div>
 
     <div class="trade-grid">
-      <div class="card">
-        <div class="ed-h">Position size</div>
-        <div class="trade-form">
-          <div class="field"><label for="tr-date">Entry date</label><input id="tr-date" type="date"></div>
-          <div class="field"><label for="tr-ticker">Ticker</label><input id="tr-ticker" type="text" placeholder="AAPL" autocapitalize="characters"></div>
-          <div class="field"><label for="tr-entry">Entry price ($)</label><input id="tr-entry" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
-          <div class="field"><label for="tr-stop">Stop loss price ($)</label><input id="tr-stop" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
-          <div class="field"><label for="tr-risk">Max loss ($)</label><input id="tr-risk" type="number" inputmode="decimal" step="10" value="300"></div>
-          <div class="field"><label for="tr-take-profit">EMA 8 take profit (%)</label><input id="tr-take-profit" type="number" inputmode="decimal" step="1" min="0" max="100" value="75"></div>
-          <div class="field"><label for="tr-ema-price">EMA 8 sell price ($)</label><input id="tr-ema-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
-          <div class="field"><label for="tr-ema-date">EMA 8 sell date</label><input id="tr-ema-date" type="date"></div>
-          <div class="field"><label for="tr-final-price">Final exit price ($)</label><input id="tr-final-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
-          <div class="field"><label for="tr-final-date">Final exit date</label><input id="tr-final-date" type="date"></div>
-          <div class="field wide"><label for="tr-notes">Notes</label><input id="tr-notes" type="text" placeholder="Setup, trigger, lesson"></div>
+      <div class="card calculator-card">
+        <div class="calc-banner">
+          <div class="ed-h">Entry Calculator</div>
+          <p class="note">Entry, stop, and max loss are required. EMA sell price and final exit price are optional for exit planning.</p>
         </div>
-        <div class="trade-summary">
-          <div class="trade-metric"><div class="k">Shares to buy</div><div class="v" id="tr-shares">0</div></div>
-          <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
-          <div class="trade-metric"><div class="k">Sell on EMA 8 break</div><div class="v" id="tr-partial">0</div></div>
-          <div class="trade-metric"><div class="k" id="tr-partial-label">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
-          <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
-          <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
-          <div class="trade-metric"><div class="k">Breakeven stop after EMA</div><div class="v" id="tr-be-stop">—</div></div>
-          <div class="trade-metric"><div class="k">Max-loss stop after EMA</div><div class="v" id="tr-loss-stop">—</div></div>
+        <div class="calc-body">
+          <div class="trade-form">
+            <div class="field"><label for="tr-entry">Entry price ($)</label><input id="tr-entry" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
+            <div class="field"><label for="tr-stop">Stop loss price ($)</label><input id="tr-stop" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
+            <div class="field"><label for="tr-risk">Max loss ($)</label><input id="tr-risk" type="number" inputmode="decimal" step="10" value="300"></div>
+            <div class="field"><label for="tr-take-profit">EMA take profit (%)</label><input id="tr-take-profit" type="number" inputmode="decimal" step="1" min="0" max="100" value="75"></div>
+            <div class="field"><label for="tr-ema-price">EMA sell price ($)</label><input id="tr-ema-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
+            <div class="field"><label for="tr-final-price">Final exit price ($)</label><input id="tr-final-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
+          </div>
+          <div class="trade-summary">
+            <div class="trade-metric primary"><div class="k">Shares to buy</div><div class="v" id="tr-shares">0</div></div>
+            <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
+            <div class="trade-metric"><div class="k">Sell on EMA break</div><div class="v" id="tr-partial">0</div></div>
+            <div class="trade-metric"><div class="k" id="tr-partial-label">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
+            <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
+            <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
+            <div class="trade-metric"><div class="k">Breakeven stop after EMA</div><div class="v" id="tr-be-stop">—</div></div>
+            <div class="trade-metric"><div class="k">Max-loss stop after EMA</div><div class="v" id="tr-loss-stop">—</div></div>
+            <div class="trade-metric pnl" id="tr-projected-pnl-card"><div class="k">Projected P/L</div><div class="v" id="tr-projected-pnl">—</div></div>
+          </div>
         </div>
-        <div class="trade-actions">
-          <button class="trade-btn" id="tr-export" type="button">Export CSV</button>
-          <button class="trade-btn" id="tr-import" type="button">Import Fidelity CSV</button>
-          <input class="trade-file" id="tr-file" type="file" accept=".csv,text/csv">
-          <button class="trade-btn danger" id="tr-clear" type="button">Clear log</button>
+      </div>
+
+      <div class="card data-card">
+        <div class="data-top">
+          <div>
+            <div class="ed-h">Import & backup</div>
+            <p class="note">Fidelity CSV imports stay in this browser, with account numbers ignored. Use the backup code before switching phones or browsers.</p>
+          </div>
+          <div class="trade-actions">
+            <button class="trade-btn" id="tr-export" type="button">Export CSV</button>
+            <button class="trade-btn" id="tr-import" type="button">Import Fidelity CSV</button>
+            <input class="trade-file" id="tr-file" type="file" accept=".csv,text/csv">
+            <button class="trade-btn danger" id="tr-clear" type="button">Clear log</button>
+          </div>
         </div>
         <div class="trade-backup">
           <div class="ed-h">Trade log backup</div>
@@ -668,15 +694,21 @@ function calcTradePlan() {
   const partialPercent = clampPct($("tr-take-profit").value || TRADE_DEFAULT_TAKE_PROFIT);
   const riskPerShare = entry - stop;
   const emaPrice = parseMoney($("tr-ema-price").value);
+  const finalPrice = parseMoney($("tr-final-price").value);
   const sellPrice = emaPrice || entry;
   if (entry <= 0 || stop <= 0 || riskPerShare <= 0 || maxLoss <= 0) {
-    return { entry, stop, maxLoss, partialPercent, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN };
+    return { entry, stop, maxLoss, partialPercent, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN, projectedPnl: NaN };
   }
   const rawShares = maxLoss / riskPerShare;
   const shares = Math.floor(rawShares);
   const partialShares = Math.floor(shares * (partialPercent / 100));
   const remainingShares = shares - partialShares;
   const stops = afterEmaStops(entry, maxLoss, shares, partialShares, emaPrice);
+  const projectedPnl = finalPrice > 0
+    ? (emaPrice > 0
+      ? ((emaPrice - entry) * partialShares) + ((finalPrice - entry) * remainingShares)
+      : (finalPrice - entry) * shares)
+    : NaN;
   return {
     entry, stop, maxLoss, partialPercent, riskPerShare, shares, rawShares,
     cost: shares * entry,
@@ -686,6 +718,7 @@ function calcTradePlan() {
     plannedRisk: shares * riskPerShare,
     breakEvenStop: stops.breakEvenStop,
     maxLossStop: stops.maxLossStop,
+    projectedPnl,
   };
 }
 function renderTradePlan() {
@@ -699,6 +732,9 @@ function renderTradePlan() {
   $("tr-planned-risk").textContent = fmt0(p.plannedRisk);
   $("tr-be-stop").textContent = fmtStop(p.breakEvenStop);
   $("tr-loss-stop").textContent = fmtStop(p.maxLossStop);
+  $("tr-projected-pnl").textContent = Number.isFinite(p.projectedPnl) ? fmt0(p.projectedPnl) : "—";
+  $("tr-projected-pnl-card").classList.toggle("pos", Number.isFinite(p.projectedPnl) && p.projectedPnl >= 0);
+  $("tr-projected-pnl-card").classList.toggle("neg", Number.isFinite(p.projectedPnl) && p.projectedPnl < 0);
 }
 function tradeRealized(t) {
   if (Number.isFinite(t.realizedPnl)) return t.realizedPnl;
@@ -885,36 +921,6 @@ function renderTrades() {
   renderTradePlan();
   renderTradeCalendar();
   updateTradeCode();
-}
-function addTrade() {
-  const p = calcTradePlan();
-  const ticker = $("tr-ticker").value.trim().toUpperCase();
-  if (!ticker || p.shares <= 0) { tradeMsg("Enter a ticker, entry price, and stop below entry before adding."); return; }
-  const partialPrice = parseMoney($("tr-ema-price").value);
-  const finalExitPrice = parseMoney($("tr-final-price").value);
-  const trade = {
-    id: String(Date.now()) + Math.random().toString(16).slice(2),
-    source: "manual",
-    date: $("tr-date").value || isoLocal(new Date()),
-    ticker,
-    entry: p.entry,
-    stop: p.stop,
-    maxLoss: p.maxLoss,
-    shares: p.shares,
-    partialPercent: p.partialPercent,
-    partialShares: p.partialShares,
-    remainingShares: p.remainingShares,
-    plannedRisk: p.plannedRisk,
-    partialPrice: partialPrice || 0,
-    partialDate: partialPrice ? ($("tr-ema-date").value || $("tr-date").value || isoLocal(new Date())) : "",
-    finalExitPrice: finalExitPrice || 0,
-    finalDate: finalExitPrice ? ($("tr-final-date").value || $("tr-date").value || isoLocal(new Date())) : "",
-    notes: $("tr-notes").value.trim(),
-  };
-  TRADE_LOG.push(trade);
-  saveTrades();
-  renderTrades();
-  tradeMsg(`${ticker} added to the log.`);
 }
 function csvEscape(v) {
   const s = v === null || v === undefined ? "" : String(v);
@@ -1200,11 +1206,7 @@ $("ed-applycode").addEventListener("click", () => {
 // default as-of = today
 $("asof").value = isoLocal(new Date());
 ["bal","asof","cush"].forEach(id => $(id).addEventListener("input", render));
-const todayIso = isoLocal(new Date());
-$("tr-date").value = todayIso;
-$("tr-ema-date").value = todayIso;
-$("tr-final-date").value = todayIso;
-["tr-entry","tr-stop","tr-risk","tr-take-profit","tr-ema-price"].forEach(id => $(id).addEventListener("input", renderTradePlan));
+["tr-entry","tr-stop","tr-risk","tr-take-profit","tr-ema-price","tr-final-price"].forEach(id => $(id).addEventListener("input", renderTradePlan));
 $("tr-export").addEventListener("click", exportTrades);
 $("tr-import").addEventListener("click", () => $("tr-file").click());
 $("tr-file").addEventListener("change", () => importTrades($("tr-file").files[0]));
