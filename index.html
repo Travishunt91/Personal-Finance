@@ -130,7 +130,7 @@
   .cal-title{font-weight:760}
   .cal-nav{display:flex;gap:6px}
   .cal-nav button{width:34px;height:32px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800}
-  .cal-summary{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+  .cal-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
   .cal-total{border:1px solid var(--line);border-radius:10px;background:#fbfcfe;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .cal-total .label,.cal-week-total .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:800}
   .cal-total .value,.cal-week-total .value{font-weight:850;font-variant-numeric:tabular-nums}
@@ -164,6 +164,7 @@
     .trade-backup-row{grid-template-columns:1fr}
     .trade-sell{grid-template-columns:1fr}
     .trade-stops{min-width:96px}
+    .cal-summary{grid-template-columns:1fr}
     .calendar{grid-template-columns:repeat(5,minmax(0,1fr)) minmax(58px,.85fr)}
     .calendar{gap:3px}
     .cal-day{min-height:58px;padding:5px;font-size:.72rem}
@@ -902,13 +903,18 @@ function pnlClass(n) {
 }
 function renderTradeCalendarSummary(events, year, month) {
   const box = $("tr-cal-summary");
+  const ytdStart = isoLocal(new Date(year, 0, 1));
+  const ytdEnd = isoLocal(new Date(year, 11, 31));
   const monthStart = isoLocal(new Date(year, month, 1));
   const monthEnd = isoLocal(new Date(year, month + 1, 0));
-  const monthTotal = events
-    .filter(e => e.date >= monthStart && e.date <= monthEnd)
-    .reduce((sum, e) => sum + e.pnl, 0);
-  const monthCount = events.filter(e => e.date >= monthStart && e.date <= monthEnd).length;
-  box.innerHTML = `<div class="cal-total"><div><div class="label">Monthly P/L</div><div class="cal-trades">${monthCount} trade${monthCount === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>`;
+  const ytdEvents = events.filter(e => e.date >= ytdStart && e.date <= ytdEnd);
+  const monthEvents = events.filter(e => e.date >= monthStart && e.date <= monthEnd);
+  const ytdTotal = ytdEvents.reduce((sum, e) => sum + e.pnl, 0);
+  const monthTotal = monthEvents.reduce((sum, e) => sum + e.pnl, 0);
+  box.innerHTML = `
+    <div class="cal-total"><div><div class="label">YTD P/L</div><div class="cal-trades">${ytdEvents.length} trade${ytdEvents.length === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(ytdTotal)}">${fmt(ytdTotal)}</div></div>
+    <div class="cal-total"><div><div class="label">Monthly P/L</div><div class="cal-trades">${monthEvents.length} trade${monthEvents.length === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>
+  `;
 }
 function renderTradeDayDetail(date, events) {
   const box = $("tr-cal-detail");
