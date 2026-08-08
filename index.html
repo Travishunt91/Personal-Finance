@@ -119,6 +119,7 @@
   .trade-metric.pnl.neg{background:#fdecea;border-color:#f1b9b2}
   .trade-metric.pnl.neg .v{color:var(--debit)}
   .data-card .ed-h{margin-bottom:4px}
+  .data-card{margin-top:16px}
   .data-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
   .data-top .note{margin:0;max-width:52ch;line-height:1.45}
   .trade-actions{display:flex;flex-wrap:wrap;gap:10px}
@@ -335,30 +336,6 @@
           </div>
         </div>
       </div>
-
-      <div class="card data-card">
-        <div class="data-top">
-          <div>
-            <div class="ed-h">Import & backup</div>
-            <p class="note">Fidelity CSV imports stay in this browser, with account numbers ignored. Use the backup code before switching phones or browsers.</p>
-          </div>
-          <div class="trade-actions">
-            <button class="trade-btn" id="tr-export" type="button">Export CSV</button>
-            <button class="trade-btn" id="tr-import" type="button">Import Fidelity CSV</button>
-            <input class="trade-file" id="tr-file" type="file" accept=".csv,text/csv">
-            <button class="trade-btn danger" id="tr-clear" type="button">Clear log</button>
-          </div>
-        </div>
-        <div class="trade-backup">
-          <div class="ed-h">Trade log backup</div>
-          <div class="trade-backup-row">
-            <textarea id="tr-code" class="ed-codebox" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
-            <button class="trade-btn" id="tr-copy-code" type="button">Copy code</button>
-            <button class="trade-btn primary" id="tr-apply-code" type="button">Apply code</button>
-          </div>
-        </div>
-        <p class="note import-note" id="tr-msg">Fidelity imports are stored locally in this browser. Common Symbol, Date, Action, Quantity, Price, Amount, and Gain/Loss columns are mapped automatically.</p>
-      </div>
     </div>
 
     <div class="card calendar-wrap">
@@ -373,6 +350,30 @@
       <div class="cal-summary" id="tr-cal-summary"></div>
       <div class="calendar" id="tr-calendar"></div>
       <div class="cal-detail" id="tr-cal-detail" hidden></div>
+    </div>
+
+    <div class="card data-card">
+      <div class="data-top">
+        <div>
+          <div class="ed-h">Import & backup</div>
+          <p class="note">Fidelity CSV imports stay in this browser, with account numbers ignored. Use the backup code before switching phones or browsers.</p>
+        </div>
+        <div class="trade-actions">
+          <button class="trade-btn" id="tr-export" type="button">Export CSV</button>
+          <button class="trade-btn" id="tr-import" type="button">Import Fidelity CSV</button>
+          <input class="trade-file" id="tr-file" type="file" accept=".csv,text/csv">
+          <button class="trade-btn danger" id="tr-clear" type="button">Clear log</button>
+        </div>
+      </div>
+      <div class="trade-backup">
+        <div class="ed-h">Trade log backup</div>
+        <div class="trade-backup-row">
+          <textarea id="tr-code" class="ed-codebox" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+          <button class="trade-btn" id="tr-copy-code" type="button">Copy code</button>
+          <button class="trade-btn primary" id="tr-apply-code" type="button">Apply code</button>
+        </div>
+      </div>
+      <p class="note import-note" id="tr-msg">Fidelity imports are stored locally in this browser. Common Symbol, Date, Action, Quantity, Price, Amount, and Gain/Loss columns are mapped automatically.</p>
     </div>
   </section>
 </div>
