@@ -126,7 +126,7 @@
   .trade-btn.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .trade-btn.danger{color:var(--debit)}
   .trade-file{display:none}
-  .trade-detail-table{min-width:780px}
+  .trade-detail-table{min-width:620px}
   .trade-detail-table td{vertical-align:top}
   .trade-detail-table .trade-edit{min-width:80px}
   .trade-detail-table .trade-edit.notes{min-width:160px}
@@ -920,7 +920,7 @@ function renderTradeDayDetail(date, events) {
   const tradeCount = dayTrades.length || dayEvents.length;
   box.innerHTML = `
     <h3>${nice(date)} · <span class="${total >= 0 ? "cre" : "deb"}">${fmt(total)}</span> · ${tradeCount} trade${tradeCount === 1 ? "" : "s"}</h3>
-    <div class="panel"><table class="trade-detail-table"><thead><tr><th>Date</th><th>Ticker</th><th class="num">Entry</th><th class="num">Stop</th><th class="num">EMA Take Profit</th><th class="num">Final Exit Price</th><th class="num">P/L</th><th>Notes</th></tr></thead><tbody id="tr-day-log"></tbody></table></div>
+    <div class="panel"><table class="trade-detail-table"><thead><tr><th>Date</th><th>Ticker</th><th class="num">Entry</th><th class="num">Final Exit Price</th><th class="num">P/L</th><th>Notes</th></tr></thead><tbody id="tr-day-log"></tbody></table></div>
   `;
   const body = $("tr-day-log");
   for (const t of dayTrades.sort((a,b) => Math.abs(tradeRealized(b)) - Math.abs(tradeRealized(a)))) {
@@ -931,8 +931,6 @@ function renderTradeDayDetail(date, events) {
     appendCell(tr, tradeDisplay(t, "date", "date", "muted"));
     appendCell(tr, tradeDisplay(t, "ticker", "ticker", "ticker"));
     appendCell(tr, tradeDisplay(t, "entry", "money", "money"), "num");
-    appendCell(tr, tradeInput(t, "stop", "money", "", "Stop price"), "num");
-    appendCell(tr, tradeDisplay(t, "partialPercent", "percent", "muted"), "num");
     appendCell(tr, tradeDisplay(t, "finalExitPrice", "money", "money"), "num");
     appendCell(tr, Number.isFinite(pnl) ? fmt(pnl) : "—", Number.isFinite(pnl) ? `num ${pnlClass(pnl)}` : "num");
     appendCell(tr, tradeInput(t, "notes", "text", "notes", "Notes"));
