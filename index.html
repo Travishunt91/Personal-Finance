@@ -108,7 +108,11 @@
   .calc-body{padding:18px}
   .trade-form{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .trade-form .wide{grid-column:1/-1}
-  .trade-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .calc-results{display:grid;gap:16px;margin-top:16px}
+  .calc-result-group{border-top:1px solid var(--line);padding-top:12px}
+  .calc-group-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;margin-bottom:8px}
+  .trade-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .calc-result-group.final .trade-summary{grid-template-columns:1fr}
   .trade-metric{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfe}
   .trade-metric .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:5px}
   .trade-metric .v{font-size:1.35rem;font-weight:760;font-variant-numeric:tabular-nums}
@@ -179,7 +183,7 @@
     .ed-income{grid-template-columns:1fr}
     .tool-switch{position:sticky;top:6px;z-index:3}
     .trade-head{display:block}
-    .trade-form,.trade-summary{grid-template-columns:1fr}
+    .trade-form,.trade-summary,.calc-results,.calc-result-group.final .trade-summary{grid-template-columns:1fr}
     .data-top{display:block}
     .data-top .note{margin-top:4px}
     .trade-backup-row{grid-template-columns:1fr}
@@ -322,17 +326,37 @@
             <div class="field"><label for="tr-ema-price">EMA sell price ($)</label><input id="tr-ema-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
             <div class="field"><label for="tr-final-price">Final exit price ($)</label><input id="tr-final-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
           </div>
-          <div class="trade-summary">
-            <div class="trade-metric primary"><div class="k">Shares to buy</div><div class="v" id="tr-shares">0</div></div>
-            <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
-            <div class="trade-metric"><div class="k">Sell on EMA break</div><div class="v" id="tr-partial">0</div></div>
-            <div class="trade-metric"><div class="k" id="tr-partial-label">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
-            <div class="trade-metric pnl" id="tr-ema-gain-card"><div class="k">EMA gain so far</div><div class="v" id="tr-ema-gain">—</div></div>
-            <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
-            <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
-            <div class="trade-metric"><div class="k">Breakeven stop after EMA</div><div class="v" id="tr-be-stop">—</div></div>
-            <div class="trade-metric"><div class="k">Max-loss stop after EMA</div><div class="v" id="tr-loss-stop">—</div></div>
-            <div class="trade-metric pnl" id="tr-projected-pnl-card"><div class="k">Projected P/L</div><div class="v" id="tr-projected-pnl">—</div></div>
+          <div class="calc-results">
+            <div class="calc-result-group">
+              <div class="calc-group-title">Entry size</div>
+              <div class="trade-summary">
+                <div class="trade-metric primary"><div class="k">Shares to buy</div><div class="v" id="tr-shares">0</div></div>
+                <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
+                <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
+              </div>
+            </div>
+            <div class="calc-result-group">
+              <div class="calc-group-title">EMA partial</div>
+              <div class="trade-summary">
+                <div class="trade-metric"><div class="k">Shares to sell</div><div class="v" id="tr-partial">0</div></div>
+                <div class="trade-metric"><div class="k" id="tr-partial-label">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
+                <div class="trade-metric pnl" id="tr-ema-gain-card"><div class="k">Gain so far</div><div class="v" id="tr-ema-gain">—</div></div>
+              </div>
+            </div>
+            <div class="calc-result-group">
+              <div class="calc-group-title">Remaining shares</div>
+              <div class="trade-summary">
+                <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
+                <div class="trade-metric"><div class="k">Breakeven stop</div><div class="v" id="tr-be-stop">—</div></div>
+                <div class="trade-metric"><div class="k" id="tr-loss-stop-label">Max-loss stop</div><div class="v" id="tr-loss-stop">—</div></div>
+              </div>
+            </div>
+            <div class="calc-result-group final">
+              <div class="calc-group-title">Final estimate</div>
+              <div class="trade-summary">
+                <div class="trade-metric pnl" id="tr-projected-pnl-card"><div class="k">Projected P/L</div><div class="v" id="tr-projected-pnl">—</div></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -742,6 +766,7 @@ function renderTradePlan() {
   $("tr-remaining").textContent = p.remainingShares.toLocaleString("en-US");
   $("tr-planned-risk").textContent = fmt0(p.plannedRisk);
   $("tr-be-stop").textContent = fmtStop(p.breakEvenStop);
+  $("tr-loss-stop-label").textContent = `${fmt0(p.maxLoss)} loss stop`;
   $("tr-loss-stop").textContent = fmtStop(p.maxLossStop);
   $("tr-projected-pnl").textContent = Number.isFinite(p.projectedPnl) ? fmt0(p.projectedPnl) : "—";
   $("tr-projected-pnl-card").classList.toggle("pos", Number.isFinite(p.projectedPnl) && p.projectedPnl >= 0);
