@@ -112,11 +112,10 @@
   .trade-btn.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .trade-btn.danger{color:var(--debit)}
   .trade-file{display:none}
-  .trade-log{margin-top:16px}
-  .trade-log .panel{border-top:1px solid var(--line);border-radius:14px;margin-top:0;padding:4px;max-height:360px;overflow:auto}
-  .trade-log td{vertical-align:top}
-  .trade-log .muted{color:var(--muted);font-size:.78rem}
-  .trade-log button{border:1px solid var(--line);background:#fff;color:var(--debit);border-radius:7px;cursor:pointer;padding:4px 8px;font-weight:700}
+  .trade-detail-table{min-width:780px}
+  .trade-detail-table td{vertical-align:top}
+  .trade-detail-table .trade-edit{min-width:80px}
+  .trade-detail-table .trade-edit.notes{min-width:160px}
   .trade-edit{width:100%;min-width:72px;border:1px solid var(--line);border-radius:7px;padding:6px 7px;background:#fbfcfe;color:var(--ink);font-size:.8rem}
   .trade-edit.ticker{min-width:68px;text-transform:uppercase;font-weight:700}
   .trade-edit.notes{min-width:150px}
@@ -314,7 +313,6 @@
           <div class="trade-metric"><div class="k">Max-loss stop after EMA</div><div class="v" id="tr-loss-stop">—</div></div>
         </div>
         <div class="trade-actions">
-          <button class="trade-btn primary" id="tr-add" type="button">Add to log</button>
           <button class="trade-btn" id="tr-export" type="button">Export CSV</button>
           <button class="trade-btn" id="tr-import" type="button">Import Fidelity CSV</button>
           <input class="trade-file" id="tr-file" type="file" accept=".csv,text/csv">
@@ -330,13 +328,6 @@
         </div>
         <p class="note import-note" id="tr-msg">Fidelity imports are stored locally in this browser. Common Symbol, Date, Action, Quantity, Price, Amount, and Gain/Loss columns are mapped automatically.</p>
       </div>
-    </div>
-
-    <div class="trade-log">
-      <div class="panel"><table>
-        <thead><tr><th>Date</th><th>Ticker</th><th class="num">Entry</th><th class="num">Stop</th><th class="num">Shares</th><th class="num">Risk</th><th>EMA 8 Sell</th><th>After EMA Stops</th><th>Final Sell</th><th class="num">Realized</th><th>Notes</th><th></th></tr></thead>
-        <tbody id="tr-log"></tbody>
-      </table></div>
     </div>
 
     <div class="card calendar-wrap">
@@ -720,11 +711,11 @@ function tradeEvents(t) {
   const out = [];
   const account = t.account || (t.source === "manual" ? "Manual trades" : "Imported");
   if (Number.isFinite(t.realizedPnl) && t.date) {
-    out.push({ date: t.date, ticker: t.ticker, account, pnl: t.realizedPnl, notes: t.notes || "", source: t.source || "" });
+    out.push({ date: t.date, ticker: t.ticker, account, pnl: t.realizedPnl, notes: t.notes || "", source: t.source || "", tradeId: t.id });
     return out;
   }
-  if (t.partialPrice && t.partialDate) out.push({ date: t.partialDate, ticker: t.ticker, account, pnl: (t.partialPrice - t.entry) * t.partialShares, notes: "EMA 8 partial sell", source: t.source || "" });
-  if (t.finalExitPrice && t.finalDate) out.push({ date: t.finalDate, ticker: t.ticker, account, pnl: (t.finalExitPrice - t.entry) * (t.partialPrice && t.partialDate ? t.remainingShares : t.shares), notes: "Final sell", source: t.source || "" });
+  if (t.partialPrice && t.partialDate) out.push({ date: t.partialDate, ticker: t.ticker, account, pnl: (t.partialPrice - t.entry) * t.partialShares, notes: "EMA 8 partial sell", source: t.source || "", tradeId: t.id });
+  if (t.finalExitPrice && t.finalDate) out.push({ date: t.finalDate, ticker: t.ticker, account, pnl: (t.finalExitPrice - t.entry) * (t.partialPrice && t.partialDate ? t.remainingShares : t.shares), notes: "Final sell", source: t.source || "", tradeId: t.id });
   return out;
 }
 function htmlEscape(v) {
@@ -742,6 +733,7 @@ function recalcTrade(t) {
   t.remainingShares = t.partialPrice && t.partialDate ? Math.max(0, t.shares - t.partialShares) : t.shares;
   if (t.entry > 0 && t.stop > 0 && t.entry > t.stop && t.shares > 0) t.plannedRisk = t.shares * (t.entry - t.stop);
   else t.plannedRisk = Number(t.plannedRisk) || 0;
+  if (t.shares > 0 && t.entry > 0 && t.finalExitPrice > 0 && !t.pnlManual) t.realizedPnl = (t.finalExitPrice - t.entry) * t.shares;
   if (!t.partialPrice) t.partialDate = "";
   if (!t.finalExitPrice) t.finalDate = "";
 }
@@ -752,9 +744,9 @@ function updateTradeField(id, field, value, type) {
   else if (type === "shares") t[field] = Math.max(0, Math.floor(parseMoney(value)));
   else if (field === "ticker") t[field] = String(value || "").trim().toUpperCase();
   else t[field] = value;
-  if (["entry","stop","shares","partialPercent","partialPrice","partialDate","finalExitPrice","finalDate","ticker"].includes(field)) recalcTrade(t);
+  if (field === "realizedPnl") t.pnlManual = true;
+  if (["entry","stop","shares","partialPercent","partialPrice","partialDate","finalExitPrice","finalDate","ticker","realizedPnl"].includes(field)) recalcTrade(t);
   saveTrades();
-  renderTradeLog();
   renderTradeCalendar();
 }
 function tradeInput(t, field, type, cls, label) {
@@ -775,77 +767,6 @@ function appendCell(row, child, cls) {
   else td.innerHTML = child;
   row.appendChild(td);
   return td;
-}
-function sellCell(t, priceField, dateField, label) {
-  const box = document.createElement("div");
-  box.className = "trade-sell";
-  box.appendChild(tradeInput(t, priceField, "money", "", `${label} price`));
-  box.appendChild(tradeInput(t, dateField, "date", "", `${label} date`));
-  return box;
-}
-function emaSellCell(t) {
-  const box = document.createElement("div");
-  box.className = "trade-sell";
-  box.appendChild(tradeInput(t, "partialPercent", "money", "", "EMA 8 take profit percent"));
-  box.appendChild(tradeInput(t, "partialPrice", "money", "", "EMA 8 sell price"));
-  box.appendChild(tradeInput(t, "partialDate", "date", "", "EMA 8 sell date"));
-  return box;
-}
-function afterEmaStopsCell(t) {
-  const maxLoss = t.maxLoss || TRADE_DEFAULT_RISK;
-  const stops = afterEmaStops(t.entry, maxLoss, t.shares, t.partialShares, t.partialPrice);
-  const box = document.createElement("div");
-  box.className = "trade-stops";
-  const beLabel = document.createElement("span");
-  beLabel.textContent = "B/E";
-  const be = document.createElement("b");
-  be.textContent = fmtStop(stops.breakEvenStop);
-  const lossLabel = document.createElement("span");
-  lossLabel.textContent = `-${fmt0(maxLoss)}`;
-  const loss = document.createElement("b");
-  loss.textContent = fmtStop(stops.maxLossStop);
-  box.append(beLabel, be, lossLabel, loss);
-  return box;
-}
-function renderTradeLog() {
-  const body = $("tr-log");
-  body.innerHTML = "";
-  const rows = TRADE_LOG.slice().sort((a,b) => (b.date || "").localeCompare(a.date || ""));
-  for (const t of rows) {
-    recalcTrade(t);
-    const tr = document.createElement("tr");
-    const realized = tradeRealized(t);
-    appendCell(tr, tradeInput(t, "date", "date", "", "Trade date"));
-    appendCell(tr, tradeInput(t, "ticker", "text", "ticker", "Ticker"));
-    appendCell(tr, tradeInput(t, "entry", "money", "", "Entry price"), "num");
-    appendCell(tr, tradeInput(t, "stop", "money", "", "Stop loss price"), "num");
-    appendCell(tr, tradeInput(t, "shares", "shares", "", "Shares"), "num");
-    appendCell(tr, t.plannedRisk ? fmt(t.plannedRisk) : "", "num");
-    appendCell(tr, emaSellCell(t));
-    appendCell(tr, afterEmaStopsCell(t));
-    appendCell(tr, sellCell(t, "finalExitPrice", "finalDate", "Final sell"));
-    appendCell(tr, realized ? fmt(realized) : "", `num ${realized >= 0 ? "cre" : "deb"}`);
-    const notesBox = document.createElement("div");
-    if (t.source === "fidelity" || t.action) {
-      const prefix = document.createElement("div");
-      prefix.className = "muted";
-      prefix.textContent = [t.source && /^fidelity/.test(t.source) ? "Fidelity import" : "", t.account || "", t.action || ""].filter(Boolean).join(" · ");
-      notesBox.appendChild(prefix);
-    }
-    notesBox.appendChild(tradeInput(t, "notes", "text", "notes", "Notes"));
-    appendCell(tr, notesBox);
-    const del = document.createElement("button");
-    del.type = "button";
-    del.textContent = "x";
-    del.dataset.del = t.id;
-    appendCell(tr, del);
-    body.appendChild(tr);
-  }
-  body.querySelectorAll("button[data-del]").forEach(btn => btn.addEventListener("click", () => {
-    TRADE_LOG = TRADE_LOG.filter(t => t.id !== btn.dataset.del);
-    saveTrades();
-    renderTrades();
-  }));
 }
 function renderTradeCalendar() {
   const cal = $("tr-calendar");
@@ -936,28 +857,32 @@ function renderTradeDayDetail(date, events) {
     box.innerHTML = `<h3>${nice(date)}</h3><p class="note">No trade gains or losses logged for this day.</p>`;
     return;
   }
-  const byAccount = {};
-  for (const e of dayEvents) byAccount[e.account] = (byAccount[e.account] || 0) + e.pnl;
+  const dayTradeIds = [...new Set(dayEvents.map(e => e.tradeId).filter(Boolean))];
+  const dayTrades = dayTradeIds.map(id => TRADE_LOG.find(t => t.id === id)).filter(Boolean);
   const total = dayEvents.reduce((sum, e) => sum + e.pnl, 0);
-  const tradeCount = dayEvents.length;
-  const accountRows = Object.entries(byAccount)
-    .sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]))
-    .map(([account, pnl]) => `<tr><td class="account-total">${htmlEscape(account)}</td><td class="num ${pnl >= 0 ? "cre" : "deb"}">${fmt(pnl)}</td></tr>`)
-    .join("");
-  const tradeRows = dayEvents
-    .slice()
-    .sort((a,b) => Math.abs(b.pnl) - Math.abs(a.pnl))
-    .map(e => `<tr><td>${htmlEscape(e.account)}</td><td>${htmlEscape(e.ticker || "")}</td><td class="num ${e.pnl >= 0 ? "cre" : "deb"}">${fmt(e.pnl)}</td><td>${htmlEscape(e.notes || "")}</td></tr>`)
-    .join("");
+  const tradeCount = dayTrades.length || dayEvents.length;
   box.innerHTML = `
     <h3>${nice(date)} · <span class="${total >= 0 ? "cre" : "deb"}">${fmt(total)}</span> · ${tradeCount} trade${tradeCount === 1 ? "" : "s"}</h3>
-    <table><thead><tr><th>Account</th><th class="num">P/L</th></tr></thead><tbody>${accountRows}</tbody></table>
-    <table><thead><tr><th>Account</th><th>Ticker</th><th class="num">P/L</th><th>Details</th></tr></thead><tbody>${tradeRows}</tbody></table>
+    <div class="panel"><table class="trade-detail-table"><thead><tr><th>Date</th><th>Ticker</th><th class="num">Entry</th><th class="num">Stop</th><th class="num">EMA Take Profit</th><th class="num">Final Exit Price</th><th class="num">P/L</th><th>Notes</th></tr></thead><tbody id="tr-day-log"></tbody></table></div>
   `;
+  const body = $("tr-day-log");
+  for (const t of dayTrades.sort((a,b) => Math.abs(tradeRealized(b)) - Math.abs(tradeRealized(a)))) {
+    recalcTrade(t);
+    if (!Number.isFinite(t.realizedPnl)) t.realizedPnl = tradeRealized(t);
+    const tr = document.createElement("tr");
+    appendCell(tr, tradeInput(t, "date", "date", "", "Trade date"));
+    appendCell(tr, tradeInput(t, "ticker", "text", "ticker", "Ticker"));
+    appendCell(tr, tradeInput(t, "entry", "money", "", "Entry price"), "num");
+    appendCell(tr, tradeInput(t, "stop", "money", "", "Stop price"), "num");
+    appendCell(tr, tradeInput(t, "partialPercent", "money", "", "EMA take profit percent"), "num");
+    appendCell(tr, tradeInput(t, "finalExitPrice", "money", "", "Final exit price"), "num");
+    appendCell(tr, tradeInput(t, "realizedPnl", "money", "", "P/L"), `num ${tradeRealized(t) >= 0 ? "cre" : "deb"}`);
+    appendCell(tr, tradeInput(t, "notes", "text", "notes", "Notes"));
+    body.appendChild(tr);
+  }
 }
 function renderTrades() {
   renderTradePlan();
-  renderTradeLog();
   renderTradeCalendar();
   updateTradeCode();
 }
@@ -1280,7 +1205,6 @@ $("tr-date").value = todayIso;
 $("tr-ema-date").value = todayIso;
 $("tr-final-date").value = todayIso;
 ["tr-entry","tr-stop","tr-risk","tr-take-profit","tr-ema-price"].forEach(id => $(id).addEventListener("input", renderTradePlan));
-$("tr-add").addEventListener("click", addTrade);
 $("tr-export").addEventListener("click", exportTrades);
 $("tr-import").addEventListener("click", () => $("tr-file").click());
 $("tr-file").addEventListener("change", () => importTrades($("tr-file").files[0]));
