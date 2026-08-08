@@ -133,6 +133,10 @@
   .trade-edit{width:100%;min-width:72px;border:1px solid var(--line);border-radius:7px;padding:6px 7px;background:#fbfcfe;color:var(--ink);font-size:.8rem}
   .trade-edit.ticker{min-width:68px;text-transform:uppercase;font-weight:700}
   .trade-edit.notes{min-width:150px}
+  .trade-display{display:block;min-width:72px;padding:6px 0;font-size:.84rem;color:var(--ink);font-variant-numeric:tabular-nums}
+  .trade-display.ticker{min-width:68px;font-weight:800}
+  .trade-display.money{font-weight:700}
+  .trade-display.muted{color:var(--muted);font-weight:600}
   .trade-sell{display:grid;grid-template-columns:70px 82px 112px;gap:5px}
   .trade-stops{min-width:118px;font-size:.78rem;line-height:1.45;color:var(--muted)}
   .trade-stops b{display:block;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -769,7 +773,7 @@ function recalcTrade(t) {
   t.remainingShares = t.partialPrice && t.partialDate ? Math.max(0, t.shares - t.partialShares) : t.shares;
   if (t.entry > 0 && t.stop > 0 && t.entry > t.stop && t.shares > 0) t.plannedRisk = t.shares * (t.entry - t.stop);
   else t.plannedRisk = Number(t.plannedRisk) || 0;
-  if (t.shares > 0 && t.entry > 0 && t.finalExitPrice > 0 && !t.pnlManual) t.realizedPnl = (t.finalExitPrice - t.entry) * t.shares;
+  if (t.shares > 0 && t.entry > 0 && t.finalExitPrice > 0 && !t.pnlManual && !Number.isFinite(t.realizedPnl)) t.realizedPnl = (t.finalExitPrice - t.entry) * t.shares;
   if (!t.partialPrice) t.partialDate = "";
   if (!t.finalExitPrice) t.finalDate = "";
 }
@@ -795,6 +799,17 @@ function tradeInput(t, field, type, cls, label) {
   input.addEventListener("change", () => updateTradeField(t.id, field, input.value, type));
   input.addEventListener("blur", () => updateTradeField(t.id, field, input.value, type));
   return input;
+}
+function tradeDisplay(t, field, type, cls) {
+  const span = document.createElement("span");
+  span.className = `trade-display ${cls || ""}`.trim();
+  const value = t[field];
+  if (type === "date") span.textContent = value ? nice(value) : "—";
+  else if (type === "ticker") span.textContent = value || "—";
+  else if (type === "percent") span.textContent = Number.isFinite(Number(value)) ? `${fmtPct(value)}%` : "—";
+  else if (type === "money") span.textContent = Number.isFinite(Number(value)) && Number(value) !== 0 ? fmt(Number(value)) : "—";
+  else span.textContent = value || "—";
+  return span;
 }
 function appendCell(row, child, cls) {
   const td = document.createElement("td");
@@ -844,7 +859,7 @@ function renderTradeCalendar() {
       cell.tabIndex = 0;
       cell.setAttribute("role", "button");
       cell.setAttribute("aria-label", `Show trades for ${nice(iso)}`);
-      cell.innerHTML = `<div class="cal-date">${d.getDate()}</div>` + (pnl ? `<div class="cal-pnl ${pnl >= 0 ? "pos" : "neg"}">${fmt0(pnl)}</div>` : "") + (count ? `<div class="cal-trades">${count} trade${count === 1 ? "" : "s"}</div>` : "");
+      cell.innerHTML = `<div class="cal-date">${d.getDate()}</div>` + (pnl ? `<div class="cal-pnl ${pnl >= 0 ? "pos" : "neg"}">${fmt(pnl)}</div>` : "") + (count ? `<div class="cal-trades">${count} trade${count === 1 ? "" : "s"}</div>` : "");
       cell.addEventListener("click", () => {
         TRADE_CAL_SELECTED = iso;
         renderTradeCalendar();
@@ -860,7 +875,7 @@ function renderTradeCalendar() {
     }
     const totalCell = document.createElement("div");
     totalCell.className = "cal-week-total";
-    totalCell.innerHTML = `<div class="label">Week</div><div class="value ${pnlClass(weekTotal)}">${fmt0(weekTotal)}</div><div class="cal-trades">${weekCount} trade${weekCount === 1 ? "" : "s"}</div>`;
+    totalCell.innerHTML = `<div class="label">Week</div><div class="value ${pnlClass(weekTotal)}">${fmt(weekTotal)}</div><div class="cal-trades">${weekCount} trade${weekCount === 1 ? "" : "s"}</div>`;
     cal.appendChild(totalCell);
   }
   renderTradeDayDetail(TRADE_CAL_SELECTED, events);
@@ -905,14 +920,15 @@ function renderTradeDayDetail(date, events) {
   for (const t of dayTrades.sort((a,b) => Math.abs(tradeRealized(b)) - Math.abs(tradeRealized(a)))) {
     recalcTrade(t);
     if (!Number.isFinite(t.realizedPnl)) t.realizedPnl = tradeRealized(t);
+    const pnl = tradeRealized(t);
     const tr = document.createElement("tr");
-    appendCell(tr, tradeInput(t, "date", "date", "", "Trade date"));
-    appendCell(tr, tradeInput(t, "ticker", "text", "ticker", "Ticker"));
-    appendCell(tr, tradeInput(t, "entry", "money", "", "Entry price"), "num");
+    appendCell(tr, tradeDisplay(t, "date", "date", "muted"));
+    appendCell(tr, tradeDisplay(t, "ticker", "ticker", "ticker"));
+    appendCell(tr, tradeDisplay(t, "entry", "money", "money"), "num");
     appendCell(tr, tradeInput(t, "stop", "money", "", "Stop price"), "num");
-    appendCell(tr, tradeInput(t, "partialPercent", "money", "", "EMA take profit percent"), "num");
-    appendCell(tr, tradeInput(t, "finalExitPrice", "money", "", "Final exit price"), "num");
-    appendCell(tr, tradeInput(t, "realizedPnl", "money", "", "P/L"), `num ${tradeRealized(t) >= 0 ? "cre" : "deb"}`);
+    appendCell(tr, tradeDisplay(t, "partialPercent", "percent", "muted"), "num");
+    appendCell(tr, tradeDisplay(t, "finalExitPrice", "money", "money"), "num");
+    appendCell(tr, Number.isFinite(pnl) ? fmt(pnl) : "—", Number.isFinite(pnl) ? `num ${pnlClass(pnl)}` : "num");
     appendCell(tr, tradeInput(t, "notes", "text", "notes", "Notes"));
     body.appendChild(tr);
   }
