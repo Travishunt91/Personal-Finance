@@ -133,11 +133,18 @@
   .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
   .cal-dow{font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;text-align:center;padding:4px}
   .cal-day{min-height:70px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;font-size:.78rem}
+  .cal-day{cursor:pointer;text-align:left}
   .cal-day.off{opacity:.42}
+  .cal-day.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
   .cal-date{color:var(--muted);font-weight:700}
   .cal-pnl{margin-top:9px;font-weight:800;font-variant-numeric:tabular-nums}
   .cal-pnl.pos{color:var(--credit)}
   .cal-pnl.neg{color:var(--debit)}
+  .cal-detail{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .cal-detail[hidden]{display:none}
+  .cal-detail h3{margin:0 0 9px;font-size:.98rem}
+  .cal-detail table{margin-top:8px}
+  .cal-detail .account-total{font-weight:800}
   .import-note{margin-top:10px;line-height:1.45}
   @media(max-width:620px){
     .inputs{grid-template-columns:1fr 1fr}
@@ -330,6 +337,7 @@
         </div>
       </div>
       <div class="calendar" id="tr-calendar"></div>
+      <div class="cal-detail" id="tr-cal-detail" hidden></div>
     </div>
   </section>
 </div>
@@ -558,6 +566,7 @@ const TRADE_DEFAULT_RISK = 300;
 const TRADE_DEFAULT_TAKE_PROFIT = 75;
 let TRADE_LOG = loadTrades();
 let TRADE_CAL = new Date();
+let TRADE_CAL_SELECTED = isoLocal(new Date());
 
 function parseMoney(v) {
   if (v === null || v === undefined) return 0;
@@ -673,9 +682,13 @@ function tradeRealized(t) {
 }
 function tradeEvents(t) {
   const out = [];
-  if (Number.isFinite(t.realizedPnl) && t.date) out.push({ date: t.date, ticker: t.ticker, pnl: t.realizedPnl });
-  if (t.partialPrice && t.partialDate) out.push({ date: t.partialDate, ticker: t.ticker, pnl: (t.partialPrice - t.entry) * t.partialShares });
-  if (t.finalExitPrice && t.finalDate) out.push({ date: t.finalDate, ticker: t.ticker, pnl: (t.finalExitPrice - t.entry) * (t.partialPrice && t.partialDate ? t.remainingShares : t.shares) });
+  const account = t.account || (t.source === "manual" ? "Manual trades" : "Imported");
+  if (Number.isFinite(t.realizedPnl) && t.date) {
+    out.push({ date: t.date, ticker: t.ticker, account, pnl: t.realizedPnl, notes: t.notes || "", source: t.source || "" });
+    return out;
+  }
+  if (t.partialPrice && t.partialDate) out.push({ date: t.partialDate, ticker: t.ticker, account, pnl: (t.partialPrice - t.entry) * t.partialShares, notes: "EMA 8 partial sell", source: t.source || "" });
+  if (t.finalExitPrice && t.finalDate) out.push({ date: t.finalDate, ticker: t.ticker, account, pnl: (t.finalExitPrice - t.entry) * (t.partialPrice && t.partialDate ? t.remainingShares : t.shares), notes: "Final sell", source: t.source || "" });
   return out;
 }
 function htmlEscape(v) {
@@ -780,7 +793,7 @@ function renderTradeLog() {
     if (t.source === "fidelity" || t.action) {
       const prefix = document.createElement("div");
       prefix.className = "muted";
-      prefix.textContent = [t.source === "fidelity" ? "Fidelity import" : "", t.action || ""].filter(Boolean).join(" · ");
+      prefix.textContent = [t.source && /^fidelity/.test(t.source) ? "Fidelity import" : "", t.account || "", t.action || ""].filter(Boolean).join(" · ");
       notesBox.appendChild(prefix);
     }
     notesBox.appendChild(tradeInput(t, "notes", "text", "notes", "Notes"));
@@ -810,7 +823,8 @@ function renderTradeCalendar() {
     cal.appendChild(h);
   });
   const daily = {};
-  for (const t of TRADE_LOG) for (const e of tradeEvents(t)) daily[e.date] = (daily[e.date] || 0) + e.pnl;
+  const events = TRADE_LOG.flatMap(tradeEvents);
+  for (const e of events) daily[e.date] = (daily[e.date] || 0) + e.pnl;
   const first = new Date(y, m, 1);
   const start = new Date(y, m, 1 - first.getDay());
   for (let i = 0; i < 42; i++) {
@@ -819,9 +833,51 @@ function renderTradeCalendar() {
     const pnl = daily[iso] || 0;
     const cell = document.createElement("div");
     cell.className = "cal-day" + (d.getMonth() === m ? "" : " off");
+    if (iso === TRADE_CAL_SELECTED) cell.className += " selected";
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-label", `Show trades for ${nice(iso)}`);
     cell.innerHTML = `<div class="cal-date">${d.getDate()}</div>` + (pnl ? `<div class="cal-pnl ${pnl >= 0 ? "pos" : "neg"}">${fmt0(pnl)}</div>` : "");
+    cell.addEventListener("click", () => {
+      TRADE_CAL_SELECTED = iso;
+      renderTradeCalendar();
+    });
+    cell.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        TRADE_CAL_SELECTED = iso;
+        renderTradeCalendar();
+      }
+    });
     cal.appendChild(cell);
   }
+  renderTradeDayDetail(TRADE_CAL_SELECTED, events);
+}
+function renderTradeDayDetail(date, events) {
+  const box = $("tr-cal-detail");
+  const dayEvents = events.filter(e => e.date === date);
+  box.hidden = false;
+  if (!dayEvents.length) {
+    box.innerHTML = `<h3>${nice(date)}</h3><p class="note">No trade gains or losses logged for this day.</p>`;
+    return;
+  }
+  const byAccount = {};
+  for (const e of dayEvents) byAccount[e.account] = (byAccount[e.account] || 0) + e.pnl;
+  const total = dayEvents.reduce((sum, e) => sum + e.pnl, 0);
+  const accountRows = Object.entries(byAccount)
+    .sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .map(([account, pnl]) => `<tr><td class="account-total">${htmlEscape(account)}</td><td class="num ${pnl >= 0 ? "cre" : "deb"}">${fmt(pnl)}</td></tr>`)
+    .join("");
+  const tradeRows = dayEvents
+    .slice()
+    .sort((a,b) => Math.abs(b.pnl) - Math.abs(a.pnl))
+    .map(e => `<tr><td>${htmlEscape(e.account)}</td><td>${htmlEscape(e.ticker || "")}</td><td class="num ${e.pnl >= 0 ? "cre" : "deb"}">${fmt(e.pnl)}</td><td>${htmlEscape(e.notes || "")}</td></tr>`)
+    .join("");
+  box.innerHTML = `
+    <h3>${nice(date)} · <span class="${total >= 0 ? "cre" : "deb"}">${fmt(total)}</span></h3>
+    <table><thead><tr><th>Account</th><th class="num">P/L</th></tr></thead><tbody>${accountRows}</tbody></table>
+    <table><thead><tr><th>Account</th><th>Ticker</th><th class="num">P/L</th><th>Details</th></tr></thead><tbody>${tradeRows}</tbody></table>
+  `;
 }
 function renderTrades() {
   renderTradePlan();
@@ -864,7 +920,7 @@ function csvEscape(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 function exportTrades() {
-  const headers = ["date","ticker","source","action","entry","stop","shares","plannedRisk","partialPercent","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","notes"];
+  const headers = ["date","account","accountNumber","ticker","source","action","entry","stop","shares","plannedRisk","partialPercent","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","importKey","notes"];
   const lines = [headers.join(",")].concat(TRADE_LOG.map(t => headers.map(h => csvEscape(t[h] === null || t[h] === undefined ? "" : t[h])).join(",")));
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
@@ -917,22 +973,122 @@ function parseCsv(text) {
   row.push(field);
   if (row.some(x => x.trim())) rows.push(row);
   if (!rows.length) return [];
-  const headers = rows.shift().map(h => h.trim());
+  const headers = rows.shift().map(h => h.replace(/^\uFEFF/, "").trim());
   return rows.map(r => Object.fromEntries(headers.map((h, i) => [h, r[i] || ""])));
+}
+function normalizeCsvKey(v) {
+  return String(v || "").replace(/^\uFEFF/, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 function findCsvValue(row, names) {
   const keys = Object.keys(row);
   for (const name of names) {
-    const found = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, "") === name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    const found = keys.find(k => normalizeCsvKey(k) === normalizeCsvKey(name));
     if (found && row[found] !== "") return row[found];
   }
   return "";
 }
+function isFidelityAccountHistory(rows) {
+  if (!rows.length) return false;
+  const keys = Object.keys(rows[0]).map(normalizeCsvKey);
+  return ["rundate","account","accountnumber","action","symbol","price","quantity","amount"].every(k => keys.includes(k));
+}
+function isRothAccount(account) {
+  return /roth\s*ira/i.test(String(account || ""));
+}
+function importFidelityAccountHistory(rows) {
+  const parsed = [];
+  let skippedRoth = 0;
+  let skippedNonTrades = 0;
+  rows.forEach((row, idx) => {
+    const account = String(findCsvValue(row, ["Account"])).trim();
+    if (isRothAccount(account)) { skippedRoth++; return; }
+    const action = String(findCsvValue(row, ["Action"])).trim();
+    const isBuy = /^YOU BOUGHT/i.test(action);
+    const isSell = /^YOU SOLD/i.test(action);
+    const symbol = String(findCsvValue(row, ["Symbol"])).trim().toUpperCase();
+    if (!symbol || (!isBuy && !isSell)) { skippedNonTrades++; return; }
+    const date = parseLocalDateValue(findCsvValue(row, ["Run Date", "Date"])) || isoLocal(new Date());
+    const qty = Math.abs(parseMoney(findCsvValue(row, ["Quantity"])));
+    const price = parseMoney(findCsvValue(row, ["Price"]));
+    const amount = parseMoney(findCsvValue(row, ["Amount"]));
+    if (qty <= 0 || price <= 0) { skippedNonTrades++; return; }
+    parsed.push({
+      idx, row, date, account, accountNumber: String(findCsvValue(row, ["Account Number"])).trim(),
+      action, isBuy, isSell, symbol, description: String(findCsvValue(row, ["Description"])).trim(),
+      qty, price, amount, fees: parseMoney(findCsvValue(row, ["Fees"]))
+    });
+  });
+  parsed.sort((a,b) => a.date.localeCompare(b.date) || a.idx - b.idx);
+  const lots = {};
+  const imported = [];
+  let unmatchedSells = 0;
+  let duplicateRows = 0;
+  for (const r of parsed) {
+    const key = `${r.accountNumber || r.account}|${r.symbol}`;
+    if (!lots[key]) lots[key] = [];
+    if (r.isBuy) {
+      const totalCost = Math.abs(r.amount) || r.price * r.qty;
+      lots[key].push({ qty: r.qty, costPerShare: totalCost / r.qty });
+      continue;
+    }
+    let remaining = r.qty;
+    let matched = 0;
+    let costBasis = 0;
+    while (remaining > 0.000001 && lots[key].length) {
+      const lot = lots[key][0];
+      const used = Math.min(remaining, lot.qty);
+      matched += used;
+      costBasis += used * lot.costPerShare;
+      lot.qty -= used;
+      remaining -= used;
+      if (lot.qty <= 0.000001) lots[key].shift();
+    }
+    if (remaining > 0.000001) unmatchedSells++;
+    if (matched <= 0.000001) continue;
+    const proceeds = (r.amount || r.price * r.qty) * (matched / r.qty);
+    const realizedPnl = proceeds - costBasis;
+    const importKey = `fidelity-history|${r.date}|${r.accountNumber}|${r.symbol}|${r.idx}|${r.qty}|${r.price}|${r.amount}`;
+    if (TRADE_LOG.some(t => t.importKey === importKey)) { duplicateRows++; continue; }
+    imported.push({
+      id: String(Date.now()) + Math.random().toString(16).slice(2),
+      source: "fidelity-history",
+      importKey,
+      date: r.date,
+      account: r.account,
+      accountNumber: r.accountNumber,
+      ticker: r.symbol,
+      action: "SOLD",
+      entry: costBasis / matched,
+      stop: 0,
+      shares: matched,
+      plannedRisk: 0,
+      partialPercent: TRADE_DEFAULT_TAKE_PROFIT,
+      partialShares: 0,
+      remainingShares: 0,
+      finalExitPrice: proceeds / matched,
+      finalDate: r.date,
+      realizedPnl,
+      notes: `${r.description || r.action}${remaining > 0.000001 ? " · partial basis matched" : ""}`,
+    });
+  }
+  TRADE_LOG = TRADE_LOG.concat(imported);
+  saveTrades();
+  renderTrades();
+  tradeMsg(`Imported ${imported.length} realized Fidelity sale row${imported.length === 1 ? "" : "s"}. Skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}${unmatchedSells ? `; ${unmatchedSells} sell row${unmatchedSells === 1 ? "" : "s"} had missing prior buys` : ""}${duplicateRows ? `; ${duplicateRows} duplicate row${duplicateRows === 1 ? "" : "s"} ignored` : ""}.`);
+}
 async function importTrades(file) {
   if (!file) return;
   const rows = parseCsv(await file.text());
+  if (isFidelityAccountHistory(rows)) {
+    importFidelityAccountHistory(rows);
+    $("tr-file").value = "";
+    return;
+  }
   let added = 0;
+  let skippedRoth = 0;
   for (const row of rows) {
+    const account = String(findCsvValue(row, ["account", "account name"])).trim();
+    if (isRothAccount(account)) { skippedRoth++; continue; }
     const ticker = String(findCsvValue(row, ["symbol", "ticker", "security symbol"])).trim().toUpperCase();
     if (!ticker) continue;
     const date = parseLocalDateValue(findCsvValue(row, ["trade date", "run date", "settlement date", "date"])) || isoLocal(new Date());
@@ -944,6 +1100,7 @@ async function importTrades(file) {
     TRADE_LOG.push({
       id: String(Date.now()) + Math.random().toString(16).slice(2),
       source: "fidelity",
+      account,
       date,
       ticker,
       action,
@@ -961,7 +1118,7 @@ async function importTrades(file) {
   }
   saveTrades();
   renderTrades();
-  tradeMsg(added ? `Imported ${added} Fidelity row${added === 1 ? "" : "s"}.` : "No ticker rows found in that CSV.");
+  tradeMsg(added ? `Imported ${added} Fidelity row${added === 1 ? "" : "s"}${skippedRoth ? ` and skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}` : ""}.` : "No ticker rows found in that CSV.");
   $("tr-file").value = "";
 }
 
