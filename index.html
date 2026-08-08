@@ -326,6 +326,7 @@
             <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
             <div class="trade-metric"><div class="k">Sell on EMA break</div><div class="v" id="tr-partial">0</div></div>
             <div class="trade-metric"><div class="k" id="tr-partial-label">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
+            <div class="trade-metric pnl" id="tr-ema-gain-card"><div class="k">EMA gain so far</div><div class="v" id="tr-ema-gain">—</div></div>
             <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
             <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
             <div class="trade-metric"><div class="k">Breakeven stop after EMA</div><div class="v" id="tr-be-stop">—</div></div>
@@ -701,13 +702,14 @@ function calcTradePlan() {
   const finalPrice = parseMoney($("tr-final-price").value);
   const sellPrice = emaPrice || entry;
   if (entry <= 0 || stop <= 0 || riskPerShare <= 0 || maxLoss <= 0) {
-    return { entry, stop, maxLoss, partialPercent, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN, projectedPnl: NaN };
+    return { entry, stop, maxLoss, partialPercent, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, emaGain: NaN, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN, projectedPnl: NaN };
   }
   const rawShares = maxLoss / riskPerShare;
   const shares = Math.floor(rawShares);
   const partialShares = Math.floor(shares * (partialPercent / 100));
   const remainingShares = shares - partialShares;
   const stops = afterEmaStops(entry, maxLoss, shares, partialShares, emaPrice);
+  const emaGain = emaPrice > 0 ? (emaPrice - entry) * partialShares : NaN;
   const projectedPnl = finalPrice > 0
     ? (emaPrice > 0
       ? ((emaPrice - entry) * partialShares) + ((finalPrice - entry) * remainingShares)
@@ -718,6 +720,7 @@ function calcTradePlan() {
     cost: shares * entry,
     partialShares,
     partialDollars: partialShares * sellPrice,
+    emaGain,
     remainingShares,
     plannedRisk: shares * riskPerShare,
     breakEvenStop: stops.breakEvenStop,
@@ -732,6 +735,9 @@ function renderTradePlan() {
   $("tr-partial").textContent = p.partialShares.toLocaleString("en-US");
   $("tr-partial-label").textContent = `${fmtPct(p.partialPercent)}% sell amount`;
   $("tr-partial-dollars").textContent = fmt0(p.partialDollars);
+  $("tr-ema-gain").textContent = Number.isFinite(p.emaGain) ? fmt0(p.emaGain) : "—";
+  $("tr-ema-gain-card").classList.toggle("pos", Number.isFinite(p.emaGain) && p.emaGain >= 0);
+  $("tr-ema-gain-card").classList.toggle("neg", Number.isFinite(p.emaGain) && p.emaGain < 0);
   $("tr-remaining").textContent = p.remainingShares.toLocaleString("en-US");
   $("tr-planned-risk").textContent = fmt0(p.plannedRisk);
   $("tr-be-stop").textContent = fmtStop(p.breakEvenStop);
