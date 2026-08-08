@@ -580,7 +580,10 @@ function parseMoney(v) {
 function loadTrades() {
   try {
     const s = localStorage.getItem(TRADE_STORE_KEY);
-    if (s) return JSON.parse(s);
+    if (s) return JSON.parse(s).map(t => {
+      if (t && Object.prototype.hasOwnProperty.call(t, "accountNumber")) delete t.accountNumber;
+      return t;
+    });
   } catch (e) {}
   return [];
 }
@@ -920,7 +923,7 @@ function csvEscape(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 function exportTrades() {
-  const headers = ["date","account","accountNumber","ticker","source","action","entry","stop","shares","plannedRisk","partialPercent","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","importKey","notes"];
+  const headers = ["date","account","ticker","source","action","entry","stop","shares","plannedRisk","partialPercent","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","importKey","notes"];
   const lines = [headers.join(",")].concat(TRADE_LOG.map(t => headers.map(h => csvEscape(t[h] === null || t[h] === undefined ? "" : t[h])).join(",")));
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
@@ -1013,7 +1016,7 @@ function importFidelityAccountHistory(rows) {
     const amount = parseMoney(findCsvValue(row, ["Amount"]));
     if (qty <= 0 || price <= 0) { skippedNonTrades++; return; }
     parsed.push({
-      idx, row, date, account, accountNumber: String(findCsvValue(row, ["Account Number"])).trim(),
+      idx, row, date, account,
       action, isBuy, isSell, symbol, description: String(findCsvValue(row, ["Description"])).trim(),
       qty, price, amount, fees: parseMoney(findCsvValue(row, ["Fees"]))
     });
@@ -1024,7 +1027,7 @@ function importFidelityAccountHistory(rows) {
   let unmatchedSells = 0;
   let duplicateRows = 0;
   for (const r of parsed) {
-    const key = `${r.accountNumber || r.account}|${r.symbol}`;
+    const key = `${r.account}|${r.symbol}`;
     if (!lots[key]) lots[key] = [];
     if (r.isBuy) {
       const totalCost = Math.abs(r.amount) || r.price * r.qty;
@@ -1047,7 +1050,7 @@ function importFidelityAccountHistory(rows) {
     if (matched <= 0.000001) continue;
     const proceeds = (r.amount || r.price * r.qty) * (matched / r.qty);
     const realizedPnl = proceeds - costBasis;
-    const importKey = `fidelity-history|${r.date}|${r.accountNumber}|${r.symbol}|${r.idx}|${r.qty}|${r.price}|${r.amount}`;
+    const importKey = `fidelity-history|${r.date}|${r.account}|${r.symbol}|${r.idx}|${r.qty}|${r.price}|${r.amount}`;
     if (TRADE_LOG.some(t => t.importKey === importKey)) { duplicateRows++; continue; }
     imported.push({
       id: String(Date.now()) + Math.random().toString(16).slice(2),
@@ -1055,7 +1058,6 @@ function importFidelityAccountHistory(rows) {
       importKey,
       date: r.date,
       account: r.account,
-      accountNumber: r.accountNumber,
       ticker: r.symbol,
       action: "SOLD",
       entry: costBasis / matched,
