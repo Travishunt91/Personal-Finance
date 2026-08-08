@@ -130,6 +130,13 @@
   .cal-title{font-weight:760}
   .cal-nav{display:flex;gap:6px}
   .cal-nav button{width:34px;height:32px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800}
+  .cal-summary{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+  .cal-total{border:1px solid var(--line);border-radius:10px;background:#fbfcfe;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .cal-total .label,.cal-week .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:800}
+  .cal-total .value,.cal-week .value{font-weight:850;font-variant-numeric:tabular-nums}
+  .cal-weeks{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .cal-week{border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px}
+  .cal-week .dates{font-size:.72rem;color:var(--muted);font-weight:700;margin-bottom:4px}
   .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
   .cal-dow{font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;text-align:center;padding:4px}
   .cal-day{min-height:70px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;font-size:.78rem}
@@ -158,6 +165,8 @@
     .trade-backup-row{grid-template-columns:1fr}
     .trade-sell{grid-template-columns:1fr}
     .trade-stops{min-width:96px}
+    .cal-weeks{display:flex;overflow-x:auto;padding-bottom:3px}
+    .cal-week{min-width:132px}
     .calendar{gap:3px}
     .cal-day{min-height:58px;padding:5px;font-size:.72rem}
   }
@@ -336,6 +345,7 @@
           <button id="tr-next" type="button" aria-label="Next month">&gt;</button>
         </div>
       </div>
+      <div class="cal-summary" id="tr-cal-summary"></div>
       <div class="calendar" id="tr-calendar"></div>
       <div class="cal-detail" id="tr-cal-detail" hidden></div>
     </div>
@@ -830,6 +840,7 @@ function renderTradeCalendar() {
   for (const e of events) daily[e.date] = (daily[e.date] || 0) + e.pnl;
   const first = new Date(y, m, 1);
   const start = new Date(y, m, 1 - first.getDay());
+  renderTradeCalendarSummary(events, daily, start, y, m);
   for (let i = 0; i < 42; i++) {
     const d = addDays(start, i);
     const iso = isoLocal(d);
@@ -855,6 +866,34 @@ function renderTradeCalendar() {
     cal.appendChild(cell);
   }
   renderTradeDayDetail(TRADE_CAL_SELECTED, events);
+}
+function dateRangeLabel(start, end) {
+  const a = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const b = end.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${a} - ${b}`;
+}
+function pnlClass(n) {
+  return n >= 0 ? "cre" : "deb";
+}
+function renderTradeCalendarSummary(events, daily, calendarStart, year, month) {
+  const box = $("tr-cal-summary");
+  const monthStart = isoLocal(new Date(year, month, 1));
+  const monthEnd = isoLocal(new Date(year, month + 1, 0));
+  const monthTotal = events
+    .filter(e => e.date >= monthStart && e.date <= monthEnd)
+    .reduce((sum, e) => sum + e.pnl, 0);
+  let weeks = "";
+  for (let i = 0; i < 42; i += 7) {
+    const weekStart = addDays(calendarStart, i);
+    const weekEnd = addDays(weekStart, 6);
+    let weekTotal = 0;
+    for (let d = 0; d < 7; d++) weekTotal += daily[isoLocal(addDays(weekStart, d))] || 0;
+    weeks += `<div class="cal-week"><div class="dates">${dateRangeLabel(weekStart, weekEnd)}</div><div class="label">Week P/L</div><div class="value ${pnlClass(weekTotal)}">${fmt(weekTotal)}</div></div>`;
+  }
+  box.innerHTML = `
+    <div class="cal-total"><div><div class="label">Monthly P/L</div><div>${TRADE_CAL.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div></div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>
+    <div class="cal-weeks">${weeks}</div>
+  `;
 }
 function renderTradeDayDetail(date, events) {
   const box = $("tr-cal-detail");
