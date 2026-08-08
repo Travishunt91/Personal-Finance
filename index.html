@@ -159,11 +159,11 @@
 <body>
 <div class="wrap">
   <div class="tool-switch" role="tablist" aria-label="Finance tools">
-    <button class="tool-tab active" id="tab-bills" type="button" role="tab" aria-selected="true" aria-controls="billsTool">Bills</button>
-    <button class="tool-tab" id="tab-trades" type="button" role="tab" aria-selected="false" aria-controls="tradesTool">Trade Log</button>
+    <button class="tool-tab" id="tab-bills" type="button" role="tab" aria-selected="false" aria-controls="billsTool">Bills</button>
+    <button class="tool-tab active" id="tab-trades" type="button" role="tab" aria-selected="true" aria-controls="tradesTool">Trade Log</button>
   </div>
 
-  <section id="billsTool" class="tool-view" role="tabpanel" aria-labelledby="tab-bills">
+  <section id="billsTool" class="tool-view" role="tabpanel" aria-labelledby="tab-bills" hidden>
   <h1>Rent &amp; Bills — Safe to Spend</h1>
   <p class="sub">Enter your balance to see what's extra after every upcoming bill is covered. Paste your sync code below to load your bills.</p>
 
@@ -261,7 +261,7 @@
   <p class="foot" id="foot"></p>
   </section>
 
-  <section id="tradesTool" class="tool-view" role="tabpanel" aria-labelledby="tab-trades" hidden>
+  <section id="tradesTool" class="tool-view" role="tabpanel" aria-labelledby="tab-trades">
     <div class="trade-head">
       <div>
         <h1>Stock Trade Log</h1>
@@ -1068,7 +1068,7 @@ $("tr-next").addEventListener("click", () => { TRADE_CAL = new Date(TRADE_CAL.ge
 buildEditor();
 render();
 renderTrades();
-try { showTool(localStorage.getItem("financeActiveTool.v1") === "trades" ? "trades" : "bills"); } catch (e) {}
+showTool("trades");
 </script>
 </body>
 </html>
