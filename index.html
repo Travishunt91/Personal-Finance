@@ -120,7 +120,7 @@
   .trade-edit{width:100%;min-width:72px;border:1px solid var(--line);border-radius:7px;padding:6px 7px;background:#fbfcfe;color:var(--ink);font-size:.8rem}
   .trade-edit.ticker{min-width:68px;text-transform:uppercase;font-weight:700}
   .trade-edit.notes{min-width:150px}
-  .trade-sell{display:grid;grid-template-columns:82px 112px;gap:5px}
+  .trade-sell{display:grid;grid-template-columns:70px 82px 112px;gap:5px}
   .trade-stops{min-width:118px;font-size:.78rem;line-height:1.45;color:var(--muted)}
   .trade-stops b{display:block;color:var(--ink);font-variant-numeric:tabular-nums}
   .calendar-wrap{margin-top:16px}
@@ -265,7 +265,7 @@
     <div class="trade-head">
       <div>
         <h1>Stock Trade Log</h1>
-        <p class="sub">Size entries from risk, plan the 75% EMA 8 sell, and track realized gains or losses by day.</p>
+        <p class="sub">Size entries from risk, plan the EMA 8 partial sell, and track realized gains or losses by day.</p>
       </div>
     </div>
 
@@ -278,6 +278,7 @@
           <div class="field"><label for="tr-entry">Entry price ($)</label><input id="tr-entry" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
           <div class="field"><label for="tr-stop">Stop loss price ($)</label><input id="tr-stop" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
           <div class="field"><label for="tr-risk">Max loss ($)</label><input id="tr-risk" type="number" inputmode="decimal" step="10" value="300"></div>
+          <div class="field"><label for="tr-take-profit">EMA 8 take profit (%)</label><input id="tr-take-profit" type="number" inputmode="decimal" step="1" min="0" max="100" value="75"></div>
           <div class="field"><label for="tr-ema-price">EMA 8 sell price ($)</label><input id="tr-ema-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
           <div class="field"><label for="tr-ema-date">EMA 8 sell date</label><input id="tr-ema-date" type="date"></div>
           <div class="field"><label for="tr-final-price">Final exit price ($)</label><input id="tr-final-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
@@ -288,7 +289,7 @@
           <div class="trade-metric"><div class="k">Shares to buy</div><div class="v" id="tr-shares">0</div></div>
           <div class="trade-metric"><div class="k">Position cost</div><div class="v" id="tr-cost">$0</div></div>
           <div class="trade-metric"><div class="k">Sell on EMA 8 break</div><div class="v" id="tr-partial">0</div></div>
-          <div class="trade-metric"><div class="k">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
+          <div class="trade-metric"><div class="k" id="tr-partial-label">75% sell amount</div><div class="v" id="tr-partial-dollars">$0</div></div>
           <div class="trade-metric"><div class="k">Keep riding</div><div class="v" id="tr-remaining">0</div></div>
           <div class="trade-metric"><div class="k">Planned risk</div><div class="v" id="tr-planned-risk">$0</div></div>
           <div class="trade-metric"><div class="k">Breakeven stop after EMA</div><div class="v" id="tr-be-stop">—</div></div>
@@ -554,6 +555,7 @@ function render() {
 // ---------- trade log ----------
 const TRADE_STORE_KEY = "stockTradeLog.v1";
 const TRADE_DEFAULT_RISK = 300;
+const TRADE_DEFAULT_TAKE_PROFIT = 75;
 let TRADE_LOG = loadTrades();
 let TRADE_CAL = new Date();
 
@@ -615,23 +617,32 @@ function fmtStop(n) {
   if (n <= 0) return "Below $0";
   return fmt(n);
 }
+function clampPct(v) {
+  const n = parseMoney(v);
+  if (!Number.isFinite(n)) return TRADE_DEFAULT_TAKE_PROFIT;
+  return Math.max(0, Math.min(100, n));
+}
+function fmtPct(n) {
+  return Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
 function calcTradePlan() {
   const entry = parseMoney($("tr-entry").value);
   const stop = parseMoney($("tr-stop").value);
   const maxLoss = parseMoney($("tr-risk").value) || TRADE_DEFAULT_RISK;
+  const partialPercent = clampPct($("tr-take-profit").value || TRADE_DEFAULT_TAKE_PROFIT);
   const riskPerShare = entry - stop;
   const emaPrice = parseMoney($("tr-ema-price").value);
   const sellPrice = emaPrice || entry;
   if (entry <= 0 || stop <= 0 || riskPerShare <= 0 || maxLoss <= 0) {
-    return { entry, stop, maxLoss, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN };
+    return { entry, stop, maxLoss, partialPercent, shares: 0, rawShares: 0, riskPerShare, cost: 0, partialShares: 0, partialDollars: 0, remainingShares: 0, plannedRisk: 0, breakEvenStop: NaN, maxLossStop: NaN };
   }
   const rawShares = maxLoss / riskPerShare;
   const shares = Math.floor(rawShares);
-  const partialShares = Math.floor(shares * 0.75);
+  const partialShares = Math.floor(shares * (partialPercent / 100));
   const remainingShares = shares - partialShares;
   const stops = afterEmaStops(entry, maxLoss, shares, partialShares, emaPrice);
   return {
-    entry, stop, maxLoss, riskPerShare, shares, rawShares,
+    entry, stop, maxLoss, partialPercent, riskPerShare, shares, rawShares,
     cost: shares * entry,
     partialShares,
     partialDollars: partialShares * sellPrice,
@@ -646,6 +657,7 @@ function renderTradePlan() {
   $("tr-shares").textContent = p.shares.toLocaleString("en-US");
   $("tr-cost").textContent = fmt0(p.cost);
   $("tr-partial").textContent = p.partialShares.toLocaleString("en-US");
+  $("tr-partial-label").textContent = `${fmtPct(p.partialPercent)}% sell amount`;
   $("tr-partial-dollars").textContent = fmt0(p.partialDollars);
   $("tr-remaining").textContent = p.remainingShares.toLocaleString("en-US");
   $("tr-planned-risk").textContent = fmt0(p.plannedRisk);
@@ -674,7 +686,8 @@ function recalcTrade(t) {
   t.entry = Number(t.entry) || 0;
   t.stop = Number(t.stop) || 0;
   t.shares = Math.max(0, Math.floor(Number(t.shares) || 0));
-  t.partialShares = Math.max(0, Math.min(t.shares, Math.floor(Number(t.partialShares) || Math.floor(t.shares * 0.75))));
+  t.partialPercent = clampPct(t.partialPercent === undefined || t.partialPercent === "" ? TRADE_DEFAULT_TAKE_PROFIT : t.partialPercent);
+  t.partialShares = Math.max(0, Math.min(t.shares, Math.floor(t.shares * (t.partialPercent / 100))));
   t.partialPrice = Number(t.partialPrice) || 0;
   t.finalExitPrice = Number(t.finalExitPrice) || 0;
   t.remainingShares = t.partialPrice && t.partialDate ? Math.max(0, t.shares - t.partialShares) : t.shares;
@@ -690,7 +703,7 @@ function updateTradeField(id, field, value, type) {
   else if (type === "shares") t[field] = Math.max(0, Math.floor(parseMoney(value)));
   else if (field === "ticker") t[field] = String(value || "").trim().toUpperCase();
   else t[field] = value;
-  if (["entry","stop","shares","partialShares","partialPrice","partialDate","finalExitPrice","finalDate","ticker"].includes(field)) recalcTrade(t);
+  if (["entry","stop","shares","partialPercent","partialPrice","partialDate","finalExitPrice","finalDate","ticker"].includes(field)) recalcTrade(t);
   saveTrades();
   renderTradeLog();
   renderTradeCalendar();
@@ -701,7 +714,7 @@ function tradeInput(t, field, type, cls, label) {
   input.type = type === "date" ? "date" : (type === "text" ? "text" : "number");
   if (input.type === "number") { input.step = type === "shares" ? "1" : "0.01"; input.inputMode = "decimal"; }
   input.setAttribute("aria-label", label);
-  input.value = t[field] || "";
+  input.value = t[field] === null || t[field] === undefined ? "" : t[field];
   input.addEventListener("change", () => updateTradeField(t.id, field, input.value, type));
   input.addEventListener("blur", () => updateTradeField(t.id, field, input.value, type));
   return input;
@@ -719,6 +732,14 @@ function sellCell(t, priceField, dateField, label) {
   box.className = "trade-sell";
   box.appendChild(tradeInput(t, priceField, "money", "", `${label} price`));
   box.appendChild(tradeInput(t, dateField, "date", "", `${label} date`));
+  return box;
+}
+function emaSellCell(t) {
+  const box = document.createElement("div");
+  box.className = "trade-sell";
+  box.appendChild(tradeInput(t, "partialPercent", "money", "", "EMA 8 take profit percent"));
+  box.appendChild(tradeInput(t, "partialPrice", "money", "", "EMA 8 sell price"));
+  box.appendChild(tradeInput(t, "partialDate", "date", "", "EMA 8 sell date"));
   return box;
 }
 function afterEmaStopsCell(t) {
@@ -751,7 +772,7 @@ function renderTradeLog() {
     appendCell(tr, tradeInput(t, "stop", "money", "", "Stop loss price"), "num");
     appendCell(tr, tradeInput(t, "shares", "shares", "", "Shares"), "num");
     appendCell(tr, t.plannedRisk ? fmt(t.plannedRisk) : "", "num");
-    appendCell(tr, sellCell(t, "partialPrice", "partialDate", "EMA 8 sell"));
+    appendCell(tr, emaSellCell(t));
     appendCell(tr, afterEmaStopsCell(t));
     appendCell(tr, sellCell(t, "finalExitPrice", "finalDate", "Final sell"));
     appendCell(tr, realized ? fmt(realized) : "", `num ${realized >= 0 ? "cre" : "deb"}`);
@@ -823,6 +844,7 @@ function addTrade() {
     stop: p.stop,
     maxLoss: p.maxLoss,
     shares: p.shares,
+    partialPercent: p.partialPercent,
     partialShares: p.partialShares,
     remainingShares: p.remainingShares,
     plannedRisk: p.plannedRisk,
@@ -842,8 +864,8 @@ function csvEscape(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 function exportTrades() {
-  const headers = ["date","ticker","source","action","entry","stop","shares","plannedRisk","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","notes"];
-  const lines = [headers.join(",")].concat(TRADE_LOG.map(t => headers.map(h => csvEscape(t[h] || "")).join(",")));
+  const headers = ["date","ticker","source","action","entry","stop","shares","plannedRisk","partialPercent","partialShares","partialPrice","partialDate","remainingShares","finalExitPrice","finalDate","realizedPnl","notes"];
+  const lines = [headers.join(",")].concat(TRADE_LOG.map(t => headers.map(h => csvEscape(t[h] === null || t[h] === undefined ? "" : t[h])).join(",")));
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -929,6 +951,7 @@ async function importTrades(file) {
       stop: 0,
       shares,
       plannedRisk: 0,
+      partialPercent: TRADE_DEFAULT_TAKE_PROFIT,
       partialShares: 0,
       remainingShares: 0,
       realizedPnl: gain === "" ? NaN : parseMoney(gain),
@@ -1024,7 +1047,7 @@ const todayIso = isoLocal(new Date());
 $("tr-date").value = todayIso;
 $("tr-ema-date").value = todayIso;
 $("tr-final-date").value = todayIso;
-["tr-entry","tr-stop","tr-risk","tr-ema-price"].forEach(id => $(id).addEventListener("input", renderTradePlan));
+["tr-entry","tr-stop","tr-risk","tr-take-profit","tr-ema-price"].forEach(id => $(id).addEventListener("input", renderTradePlan));
 $("tr-add").addEventListener("click", addTrade);
 $("tr-export").addEventListener("click", exportTrades);
 $("tr-import").addEventListener("click", () => $("tr-file").click());
