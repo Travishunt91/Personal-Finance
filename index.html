@@ -134,6 +134,7 @@
   .cal-total{border:1px solid var(--line);border-radius:10px;background:#fbfcfe;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .cal-total .label,.cal-week-total .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:800}
   .cal-total .value,.cal-week-total .value{font-weight:850;font-variant-numeric:tabular-nums}
+  .cal-trades{margin-top:4px;color:var(--muted);font-size:.7rem;font-weight:750}
   .calendar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(76px,.9fr);gap:5px}
   .cal-dow{font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;text-align:center;padding:4px}
   .cal-day{min-height:70px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px;font-size:.78rem}
@@ -167,6 +168,7 @@
     .calendar{gap:3px}
     .cal-day{min-height:58px;padding:5px;font-size:.72rem}
     .cal-week-total{min-height:58px;padding:5px;font-size:.72rem}
+    .cal-trades{font-size:.64rem}
   }
 </style>
 </head>
@@ -847,7 +849,11 @@ function renderTradeCalendar() {
   });
   const daily = {};
   const events = TRADE_LOG.flatMap(tradeEvents);
-  for (const e of events) daily[e.date] = (daily[e.date] || 0) + e.pnl;
+  for (const e of events) {
+    if (!daily[e.date]) daily[e.date] = { pnl: 0, count: 0 };
+    daily[e.date].pnl += e.pnl;
+    daily[e.date].count += 1;
+  }
   const first = new Date(y, m, 1);
   const mondayOffset = first.getDay() === 0 ? -6 : 1 - first.getDay();
   const start = addDays(first, mondayOffset);
@@ -855,18 +861,22 @@ function renderTradeCalendar() {
   for (let week = 0; week < 6; week++) {
     const weekStart = addDays(start, week * 7);
     let weekTotal = 0;
+    let weekCount = 0;
     for (let i = 0; i < 5; i++) {
       const d = addDays(weekStart, i);
       const iso = isoLocal(d);
-      const pnl = daily[iso] || 0;
+      const stats = daily[iso] || { pnl: 0, count: 0 };
+      const pnl = stats.pnl;
+      const count = stats.count;
       weekTotal += pnl;
+      weekCount += count;
       const cell = document.createElement("div");
       cell.className = "cal-day" + (d.getMonth() === m ? "" : " off");
       if (iso === TRADE_CAL_SELECTED) cell.className += " selected";
       cell.tabIndex = 0;
       cell.setAttribute("role", "button");
       cell.setAttribute("aria-label", `Show trades for ${nice(iso)}`);
-      cell.innerHTML = `<div class="cal-date">${d.getDate()}</div>` + (pnl ? `<div class="cal-pnl ${pnl >= 0 ? "pos" : "neg"}">${fmt0(pnl)}</div>` : "");
+      cell.innerHTML = `<div class="cal-date">${d.getDate()}</div>` + (pnl ? `<div class="cal-pnl ${pnl >= 0 ? "pos" : "neg"}">${fmt0(pnl)}</div>` : "") + (count ? `<div class="cal-trades">${count} trade${count === 1 ? "" : "s"}</div>` : "");
       cell.addEventListener("click", () => {
         TRADE_CAL_SELECTED = iso;
         renderTradeCalendar();
@@ -882,7 +892,7 @@ function renderTradeCalendar() {
     }
     const totalCell = document.createElement("div");
     totalCell.className = "cal-week-total";
-    totalCell.innerHTML = `<div class="label">Week</div><div class="value ${pnlClass(weekTotal)}">${fmt0(weekTotal)}</div>`;
+    totalCell.innerHTML = `<div class="label">Week</div><div class="value ${pnlClass(weekTotal)}">${fmt0(weekTotal)}</div><div class="cal-trades">${weekCount} trade${weekCount === 1 ? "" : "s"}</div>`;
     cal.appendChild(totalCell);
   }
   renderTradeDayDetail(TRADE_CAL_SELECTED, events);
@@ -897,7 +907,8 @@ function renderTradeCalendarSummary(events, year, month) {
   const monthTotal = events
     .filter(e => e.date >= monthStart && e.date <= monthEnd)
     .reduce((sum, e) => sum + e.pnl, 0);
-  box.innerHTML = `<div class="cal-total"><div class="label">Monthly P/L</div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>`;
+  const monthCount = events.filter(e => e.date >= monthStart && e.date <= monthEnd).length;
+  box.innerHTML = `<div class="cal-total"><div><div class="label">Monthly P/L</div><div class="cal-trades">${monthCount} trade${monthCount === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>`;
 }
 function renderTradeDayDetail(date, events) {
   const box = $("tr-cal-detail");
@@ -910,6 +921,7 @@ function renderTradeDayDetail(date, events) {
   const byAccount = {};
   for (const e of dayEvents) byAccount[e.account] = (byAccount[e.account] || 0) + e.pnl;
   const total = dayEvents.reduce((sum, e) => sum + e.pnl, 0);
+  const tradeCount = dayEvents.length;
   const accountRows = Object.entries(byAccount)
     .sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]))
     .map(([account, pnl]) => `<tr><td class="account-total">${htmlEscape(account)}</td><td class="num ${pnl >= 0 ? "cre" : "deb"}">${fmt(pnl)}</td></tr>`)
@@ -920,7 +932,7 @@ function renderTradeDayDetail(date, events) {
     .map(e => `<tr><td>${htmlEscape(e.account)}</td><td>${htmlEscape(e.ticker || "")}</td><td class="num ${e.pnl >= 0 ? "cre" : "deb"}">${fmt(e.pnl)}</td><td>${htmlEscape(e.notes || "")}</td></tr>`)
     .join("");
   box.innerHTML = `
-    <h3>${nice(date)} · <span class="${total >= 0 ? "cre" : "deb"}">${fmt(total)}</span></h3>
+    <h3>${nice(date)} · <span class="${total >= 0 ? "cre" : "deb"}">${fmt(total)}</span> · ${tradeCount} trade${tradeCount === 1 ? "" : "s"}</h3>
     <table><thead><tr><th>Account</th><th class="num">P/L</th></tr></thead><tbody>${accountRows}</tbody></table>
     <table><thead><tr><th>Account</th><th>Ticker</th><th class="num">P/L</th><th>Details</th></tr></thead><tbody>${tradeRows}</tbody></table>
   `;
