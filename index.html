@@ -130,6 +130,7 @@
   .cal-title{font-weight:760}
   .cal-nav{display:flex;gap:6px}
   .cal-nav button{width:34px;height:32px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800}
+  .cal-toggle{width:auto!important;padding:0 10px;font-size:.78rem}
   .cal-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
   .cal-total{border:1px solid var(--line);border-radius:10px;background:#fbfcfe;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .cal-total .label,.cal-week-total .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:800}
@@ -342,6 +343,7 @@
       <div class="cal-head">
         <div class="cal-title" id="tr-cal-title">Month</div>
         <div class="cal-nav">
+          <button class="cal-toggle" id="tr-ytd-toggle" type="button" aria-pressed="true">Hide YTD</button>
           <button id="tr-prev" type="button" aria-label="Previous month">&lt;</button>
           <button id="tr-next" type="button" aria-label="Next month">&gt;</button>
         </div>
@@ -585,11 +587,13 @@ function render() {
 
 // ---------- trade log ----------
 const TRADE_STORE_KEY = "stockTradeLog.v1";
+const TRADE_SHOW_YTD_KEY = "stockTradeShowYtd.v1";
 const TRADE_DEFAULT_RISK = 300;
 const TRADE_DEFAULT_TAKE_PROFIT = 75;
 let TRADE_LOG = loadTrades();
 let TRADE_CAL = new Date();
 let TRADE_CAL_SELECTED = isoLocal(tradingDate(new Date()));
+let TRADE_SHOW_YTD = loadTradeShowYtd();
 
 function parseMoney(v) {
   if (v === null || v === undefined) return 0;
@@ -613,6 +617,12 @@ function loadTrades() {
 function saveTrades() {
   try { localStorage.setItem(TRADE_STORE_KEY, JSON.stringify(TRADE_LOG)); } catch (e) {}
   updateTradeCode();
+}
+function loadTradeShowYtd() {
+  try { return localStorage.getItem(TRADE_SHOW_YTD_KEY) !== "0"; } catch (e) { return true; }
+}
+function saveTradeShowYtd() {
+  try { localStorage.setItem(TRADE_SHOW_YTD_KEY, TRADE_SHOW_YTD ? "1" : "0"); } catch (e) {}
 }
 function tradeMsg(msg) {
   const elMsg = $("tr-msg");
@@ -903,6 +913,9 @@ function pnlClass(n) {
 }
 function renderTradeCalendarSummary(events, year, month) {
   const box = $("tr-cal-summary");
+  const ytdButton = $("tr-ytd-toggle");
+  ytdButton.textContent = TRADE_SHOW_YTD ? "Hide YTD" : "Show YTD";
+  ytdButton.setAttribute("aria-pressed", TRADE_SHOW_YTD ? "true" : "false");
   const ytdStart = isoLocal(new Date(year, 0, 1));
   const ytdEnd = isoLocal(new Date(year, 11, 31));
   const monthStart = isoLocal(new Date(year, month, 1));
@@ -911,10 +924,9 @@ function renderTradeCalendarSummary(events, year, month) {
   const monthEvents = events.filter(e => e.date >= monthStart && e.date <= monthEnd);
   const ytdTotal = ytdEvents.reduce((sum, e) => sum + e.pnl, 0);
   const monthTotal = monthEvents.reduce((sum, e) => sum + e.pnl, 0);
-  box.innerHTML = `
-    <div class="cal-total"><div><div class="label">YTD P/L</div><div class="cal-trades">${ytdEvents.length} trade${ytdEvents.length === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(ytdTotal)}">${fmt(ytdTotal)}</div></div>
-    <div class="cal-total"><div><div class="label">Monthly P/L</div><div class="cal-trades">${monthEvents.length} trade${monthEvents.length === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>
-  `;
+  const ytdCard = TRADE_SHOW_YTD ? `<div class="cal-total"><div><div class="label">YTD P/L</div><div class="cal-trades">${ytdEvents.length} trade${ytdEvents.length === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(ytdTotal)}">${fmt(ytdTotal)}</div></div>` : "";
+  const monthCard = `<div class="cal-total"><div><div class="label">Monthly P/L</div><div class="cal-trades">${monthEvents.length} trade${monthEvents.length === 1 ? "" : "s"}</div></div><div class="value ${pnlClass(monthTotal)}">${fmt(monthTotal)}</div></div>`;
+  box.innerHTML = ytdCard + monthCard;
 }
 function renderTradeDayDetail(date, events) {
   const box = $("tr-cal-detail");
@@ -1290,6 +1302,11 @@ function moveTradeCalendar(monthDelta) {
 }
 $("tr-prev").addEventListener("click", () => moveTradeCalendar(-1));
 $("tr-next").addEventListener("click", () => moveTradeCalendar(1));
+$("tr-ytd-toggle").addEventListener("click", () => {
+  TRADE_SHOW_YTD = !TRADE_SHOW_YTD;
+  saveTradeShowYtd();
+  renderTradeCalendar();
+});
 buildEditor();
 render();
 renderTrades();
