@@ -1061,7 +1061,7 @@ function findCsvValue(row, names) {
 function isFidelityAccountHistory(rows) {
   if (!rows.length) return false;
   const keys = Object.keys(rows[0]).map(normalizeCsvKey);
-  return ["rundate","account","accountnumber","action","symbol","price","quantity","amount"].every(k => keys.includes(k));
+  return ["rundate","action","symbol","price","quantity","amount"].every(k => keys.includes(k));
 }
 function isRothAccount(account) {
   return /roth\s*ira/i.test(String(account || ""));
@@ -1085,10 +1085,21 @@ function fidelityTradeMatchKey({ date, account, symbol, side, qty, price, amount
     keyNumber(amount, 2)
   ].join("|");
 }
-function removeMatchingPendingTrades(matchKeys) {
-  if (!matchKeys.size) return 0;
+function fidelityTradeLooseMatchKey({ date, symbol, side, qty, price, amount }) {
+  return [
+    "fidelity-loose",
+    date || "",
+    String(symbol || "").toUpperCase(),
+    String(side || "").toUpperCase(),
+    keyNumber(qty, 3),
+    keyNumber(price, 4),
+    keyNumber(amount, 2)
+  ].join("|");
+}
+function removeMatchingPendingTrades(matchKeys, looseMatchKeys) {
+  if (!matchKeys.size && !looseMatchKeys.size) return 0;
   const before = TRADE_LOG.length;
-  TRADE_LOG = TRADE_LOG.filter(t => !(t.source === "fidelity-pending" && matchKeys.has(t.pendingKey || t.importKey)));
+  TRADE_LOG = TRADE_LOG.filter(t => !(t.source === "fidelity-pending" && (matchKeys.has(t.pendingKey || t.importKey) || looseMatchKeys.has(t.pendingLooseKey || ""))));
   return before - TRADE_LOG.length;
 }
 function importFidelityAccountHistory(rows) {
@@ -1096,7 +1107,7 @@ function importFidelityAccountHistory(rows) {
   let skippedRoth = 0;
   let skippedNonTrades = 0;
   rows.forEach((row, idx) => {
-    const rawAccount = String(findCsvValue(row, ["Account"])).trim();
+    const rawAccount = String(findCsvValue(row, ["Account", "Account Name"])).trim() || "Fidelity";
     if (isRothAccount(rawAccount)) { skippedRoth++; return; }
     const account = normalizeFidelityAccountName(rawAccount);
     const action = String(findCsvValue(row, ["Action"])).trim();
@@ -1114,11 +1125,12 @@ function importFidelityAccountHistory(rows) {
       idx, row, date, account,
       action, isBuy, isSell, symbol, description: String(findCsvValue(row, ["Description"])).trim(),
       qty, price, amount, fees: parseMoney(findCsvValue(row, ["Fees"])),
-      pendingKey: fidelityTradeMatchKey({ date, account, symbol, side, qty, price, amount })
+      pendingKey: fidelityTradeMatchKey({ date, account, symbol, side, qty, price, amount }),
+      pendingLooseKey: fidelityTradeLooseMatchKey({ date, symbol, side, qty, price, amount })
     });
   });
-  parsed.sort((a,b) => a.date.localeCompare(b.date) || a.idx - b.idx);
-  const clearedPending = removeMatchingPendingTrades(new Set(parsed.map(r => r.pendingKey)));
+  parsed.sort((a,b) => a.date.localeCompare(b.date) || a.account.localeCompare(b.account) || a.symbol.localeCompare(b.symbol) || Number(a.isSell) - Number(b.isSell) || a.idx - b.idx);
+  const clearedPending = removeMatchingPendingTrades(new Set(parsed.map(r => r.pendingKey)), new Set(parsed.map(r => r.pendingLooseKey)));
   const lots = {};
   const imported = [];
   let unmatchedSells = 0;
@@ -1148,12 +1160,13 @@ function importFidelityAccountHistory(rows) {
     const proceeds = (r.amount || r.price * r.qty) * (matched / r.qty);
     const realizedPnl = proceeds - costBasis;
     const importKey = `fidelity-history|${r.date}|${r.account}|${r.symbol}|${r.idx}|${r.qty}|${r.price}|${r.amount}`;
-    if (TRADE_LOG.some(t => t.importKey === importKey || t.pendingKey === r.pendingKey)) { duplicateRows++; continue; }
+    if (TRADE_LOG.some(t => t.importKey === importKey || t.pendingKey === r.pendingKey || t.pendingLooseKey === r.pendingLooseKey)) { duplicateRows++; continue; }
     imported.push({
       id: String(Date.now()) + Math.random().toString(16).slice(2),
       source: "fidelity-history",
       importKey,
       pendingKey: r.pendingKey,
+      pendingLooseKey: r.pendingLooseKey,
       date: r.date,
       account: r.account,
       ticker: r.symbol,
@@ -1254,6 +1267,7 @@ function importPendingFidelityText() {
     const qty = requestedShares > 0 ? requestedShares : (price > 0 ? amount / price : 0);
     if (!symbol || price <= 0 || amount <= 0 || qty <= 0) { skippedInvalid++; continue; }
     const pendingKey = fidelityTradeMatchKey({ date: row.date, account, symbol, side, qty, price, amount });
+    const pendingLooseKey = fidelityTradeLooseMatchKey({ date: row.date, symbol, side, qty, price, amount });
     if (TRADE_LOG.some(t => t.pendingKey === pendingKey || t.importKey === pendingKey) || newRows.some(t => t.pendingKey === pendingKey)) {
       duplicates++;
       continue;
@@ -1263,6 +1277,7 @@ function importPendingFidelityText() {
       source: "fidelity-pending",
       importKey: pendingKey,
       pendingKey,
+      pendingLooseKey,
       date: row.date,
       account,
       ticker: symbol,
