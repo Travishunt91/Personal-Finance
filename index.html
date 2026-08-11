@@ -786,7 +786,7 @@ function renderTradePlan() {
   $("tr-projected-pnl-card").classList.toggle("neg", Number.isFinite(p.projectedPnl) && p.projectedPnl < 0);
 }
 function tradeRealized(t) {
-  if (t.source === "fidelity-pending") return NaN;
+  if (t.source === "fidelity-pending") return Number.isFinite(t.realizedPnl) ? t.realizedPnl : NaN;
   if (Number.isFinite(t.realizedPnl)) return t.realizedPnl;
   let pnl = 0;
   if (t.partialPrice && t.partialDate) pnl += (t.partialPrice - t.entry) * t.partialShares;
@@ -797,7 +797,7 @@ function tradeEvents(t) {
   const out = [];
   const account = t.account || (t.source === "manual" ? "Manual trades" : "Imported");
   if (t.source === "fidelity-pending" && t.date) {
-    out.push({ date: t.date, ticker: t.ticker, account, pnl: 0, notes: t.notes || "Pending", source: t.source || "", tradeId: t.id, pending: true });
+    out.push({ date: t.date, ticker: t.ticker, account, pnl: Number.isFinite(t.realizedPnl) ? t.realizedPnl : 0, notes: t.notes || "Pending", source: t.source || "", tradeId: t.id, pending: true });
     return out;
   }
   if (Number.isFinite(t.realizedPnl) && t.date) {
@@ -970,7 +970,7 @@ function renderTradeDayDetail(date, events) {
   for (const t of dayTrades.sort((a,b) => Math.abs(tradeRealized(b)) - Math.abs(tradeRealized(a)))) {
     recalcTrade(t);
     if (t.source !== "fidelity-pending" && !Number.isFinite(t.realizedPnl)) t.realizedPnl = tradeRealized(t);
-    const pnl = t.source === "fidelity-pending" ? NaN : tradeRealized(t);
+    const pnl = tradeRealized(t);
     const tr = document.createElement("tr");
     appendCell(tr, tradeDisplay(t, "date", "date", "muted"));
     appendCell(tr, tradeDisplay(t, "ticker", "ticker", "ticker"));
@@ -1194,6 +1194,43 @@ function parseFidelityPendingText(text) {
   }
   return rows;
 }
+function addPendingPnlEstimates(rows) {
+  const lots = {};
+  let estimated = 0;
+  let unmatched = 0;
+  for (const row of rows) {
+    const key = `${row.account}|${row.ticker}`;
+    if (!lots[key]) lots[key] = [];
+    if (row.action === "BUY") {
+      const totalCost = Math.abs(row.amount) || row.entry * row.shares;
+      if (row.shares > 0 && totalCost > 0) lots[key].push({ qty: row.shares, costPerShare: totalCost / row.shares });
+      continue;
+    }
+    if (row.action !== "SELL") continue;
+    let remaining = row.shares;
+    let matched = 0;
+    let costBasis = 0;
+    while (remaining > 0.000001 && lots[key].length) {
+      const lot = lots[key][0];
+      const used = Math.min(remaining, lot.qty);
+      matched += used;
+      costBasis += used * lot.costPerShare;
+      lot.qty -= used;
+      remaining -= used;
+      if (lot.qty <= 0.000001) lots[key].shift();
+    }
+    if (matched > 0.000001) {
+      const proceeds = (Math.abs(row.amount) || row.finalExitPrice * row.shares) * (matched / row.shares);
+      row.entry = costBasis / matched;
+      row.shares = matched;
+      row.realizedPnl = proceeds - costBasis;
+      row.notes += `${row.notes ? " · " : ""}Estimated P/L from pending buys`;
+      estimated++;
+    }
+    if (remaining > 0.000001) unmatched++;
+  }
+  return { estimated, unmatched };
+}
 function importPendingFidelityText() {
   const box = $("tr-pending-text");
   const parsed = parseFidelityPendingText(box.value);
@@ -1230,6 +1267,7 @@ function importPendingFidelityText() {
       account,
       ticker: symbol,
       action: side,
+      amount,
       entry: side === "BUY" ? price : 0,
       stop: 0,
       shares: qty,
@@ -1244,11 +1282,12 @@ function importPendingFidelityText() {
     });
     added++;
   }
+  const estimates = addPendingPnlEstimates(newRows.slice().reverse().sort((a,b) => a.date.localeCompare(b.date)));
   TRADE_LOG = TRADE_LOG.concat(newRows);
   saveTrades();
   renderTrades();
   if (added) box.value = "";
-  tradeMsg(`Imported ${added} pending Fidelity row${added === 1 ? "" : "s"}${skippedRoth ? `; skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}` : ""}${skippedCanceled ? `; skipped ${skippedCanceled} canceled row${skippedCanceled === 1 ? "" : "s"}` : ""}${duplicates ? `; ${duplicates} duplicate row${duplicates === 1 ? "" : "s"} ignored` : ""}${skippedInvalid ? `; ${skippedInvalid} row${skippedInvalid === 1 ? "" : "s"} could not be read` : ""}.`);
+  tradeMsg(`Imported ${added} pending Fidelity row${added === 1 ? "" : "s"}${estimates.estimated ? `; estimated P/L for ${estimates.estimated} sell row${estimates.estimated === 1 ? "" : "s"}` : ""}${estimates.unmatched ? `; ${estimates.unmatched} sell row${estimates.unmatched === 1 ? "" : "s"} had no matching pending buy` : ""}${skippedRoth ? `; skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}` : ""}${skippedCanceled ? `; skipped ${skippedCanceled} canceled row${skippedCanceled === 1 ? "" : "s"}` : ""}${duplicates ? `; ${duplicates} duplicate row${duplicates === 1 ? "" : "s"} ignored` : ""}${skippedInvalid ? `; ${skippedInvalid} row${skippedInvalid === 1 ? "" : "s"} could not be read` : ""}.`);
 }
 async function importTrades(file) {
   if (!file) return;
