@@ -397,6 +397,13 @@
           <button class="trade-btn primary" id="tr-apply-code" type="button">Apply code</button>
         </div>
       </div>
+      <div class="trade-backup">
+        <div class="ed-h">Paste pending Fidelity activity</div>
+        <div class="trade-backup-row">
+          <textarea id="tr-pending-text" class="ed-codebox" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off" placeholder="Paste Fidelity pending transactions here"></textarea>
+          <button class="trade-btn primary" id="tr-import-pending" type="button">Import pending</button>
+        </div>
+      </div>
       <p class="note import-note" id="tr-msg">Fidelity imports are stored locally in this browser. Common Symbol, Date, Action, Quantity, Price, Amount, and Gain/Loss columns are mapped automatically.</p>
     </div>
   </section>
@@ -688,6 +695,12 @@ function parseLocalDateValue(v) {
     const y = Number(m[3].length === 2 ? "20" + m[3] : m[3]);
     return `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
   }
+  const named = s.match(/^([A-Za-z]{3})-(\d{1,2})-(\d{4})$/);
+  if (named) {
+    const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+    const month = months[named[1].toLowerCase()];
+    if (month) return `${named[3]}-${String(month).padStart(2, "0")}-${String(named[2]).padStart(2, "0")}`;
+  }
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? "" : isoLocal(d);
 }
@@ -773,6 +786,7 @@ function renderTradePlan() {
   $("tr-projected-pnl-card").classList.toggle("neg", Number.isFinite(p.projectedPnl) && p.projectedPnl < 0);
 }
 function tradeRealized(t) {
+  if (t.source === "fidelity-pending") return NaN;
   if (Number.isFinite(t.realizedPnl)) return t.realizedPnl;
   let pnl = 0;
   if (t.partialPrice && t.partialDate) pnl += (t.partialPrice - t.entry) * t.partialShares;
@@ -782,6 +796,10 @@ function tradeRealized(t) {
 function tradeEvents(t) {
   const out = [];
   const account = t.account || (t.source === "manual" ? "Manual trades" : "Imported");
+  if (t.source === "fidelity-pending" && t.date) {
+    out.push({ date: t.date, ticker: t.ticker, account, pnl: 0, notes: t.notes || "Pending", source: t.source || "", tradeId: t.id, pending: true });
+    return out;
+  }
   if (Number.isFinite(t.realizedPnl) && t.date) {
     out.push({ date: t.date, ticker: t.ticker, account, pnl: t.realizedPnl, notes: t.notes || "", source: t.source || "", tradeId: t.id });
     return out;
@@ -951,8 +969,8 @@ function renderTradeDayDetail(date, events) {
   const body = $("tr-day-log");
   for (const t of dayTrades.sort((a,b) => Math.abs(tradeRealized(b)) - Math.abs(tradeRealized(a)))) {
     recalcTrade(t);
-    if (!Number.isFinite(t.realizedPnl)) t.realizedPnl = tradeRealized(t);
-    const pnl = tradeRealized(t);
+    if (t.source !== "fidelity-pending" && !Number.isFinite(t.realizedPnl)) t.realizedPnl = tradeRealized(t);
+    const pnl = t.source === "fidelity-pending" ? NaN : tradeRealized(t);
     const tr = document.createElement("tr");
     appendCell(tr, tradeDisplay(t, "date", "date", "muted"));
     appendCell(tr, tradeDisplay(t, "ticker", "ticker", "ticker"));
@@ -1048,13 +1066,39 @@ function isFidelityAccountHistory(rows) {
 function isRothAccount(account) {
   return /roth\s*ira/i.test(String(account || ""));
 }
+function normalizeFidelityAccountName(account) {
+  return String(account || "").replace(/\s+\*+\d+\s*$/, "").trim();
+}
+function keyNumber(n, decimals) {
+  const v = Math.abs(Number(n) || 0);
+  return v.toFixed(decimals).replace(/\.?0+$/, "");
+}
+function fidelityTradeMatchKey({ date, account, symbol, side, qty, price, amount }) {
+  return [
+    "fidelity-match",
+    date || "",
+    normalizeFidelityAccountName(account).toLowerCase().replace(/[^a-z0-9]/g, ""),
+    String(symbol || "").toUpperCase(),
+    String(side || "").toUpperCase(),
+    keyNumber(qty, 3),
+    keyNumber(price, 4),
+    keyNumber(amount, 2)
+  ].join("|");
+}
+function removeMatchingPendingTrades(matchKeys) {
+  if (!matchKeys.size) return 0;
+  const before = TRADE_LOG.length;
+  TRADE_LOG = TRADE_LOG.filter(t => !(t.source === "fidelity-pending" && matchKeys.has(t.pendingKey || t.importKey)));
+  return before - TRADE_LOG.length;
+}
 function importFidelityAccountHistory(rows) {
   const parsed = [];
   let skippedRoth = 0;
   let skippedNonTrades = 0;
   rows.forEach((row, idx) => {
-    const account = String(findCsvValue(row, ["Account"])).trim();
-    if (isRothAccount(account)) { skippedRoth++; return; }
+    const rawAccount = String(findCsvValue(row, ["Account"])).trim();
+    if (isRothAccount(rawAccount)) { skippedRoth++; return; }
+    const account = normalizeFidelityAccountName(rawAccount);
     const action = String(findCsvValue(row, ["Action"])).trim();
     const isBuy = /^YOU BOUGHT/i.test(action);
     const isSell = /^YOU SOLD/i.test(action);
@@ -1065,13 +1109,16 @@ function importFidelityAccountHistory(rows) {
     const price = parseMoney(findCsvValue(row, ["Price"]));
     const amount = parseMoney(findCsvValue(row, ["Amount"]));
     if (qty <= 0 || price <= 0) { skippedNonTrades++; return; }
+    const side = isBuy ? "BUY" : "SELL";
     parsed.push({
       idx, row, date, account,
       action, isBuy, isSell, symbol, description: String(findCsvValue(row, ["Description"])).trim(),
-      qty, price, amount, fees: parseMoney(findCsvValue(row, ["Fees"]))
+      qty, price, amount, fees: parseMoney(findCsvValue(row, ["Fees"])),
+      pendingKey: fidelityTradeMatchKey({ date, account, symbol, side, qty, price, amount })
     });
   });
   parsed.sort((a,b) => a.date.localeCompare(b.date) || a.idx - b.idx);
+  const clearedPending = removeMatchingPendingTrades(new Set(parsed.map(r => r.pendingKey)));
   const lots = {};
   const imported = [];
   let unmatchedSells = 0;
@@ -1101,11 +1148,12 @@ function importFidelityAccountHistory(rows) {
     const proceeds = (r.amount || r.price * r.qty) * (matched / r.qty);
     const realizedPnl = proceeds - costBasis;
     const importKey = `fidelity-history|${r.date}|${r.account}|${r.symbol}|${r.idx}|${r.qty}|${r.price}|${r.amount}`;
-    if (TRADE_LOG.some(t => t.importKey === importKey)) { duplicateRows++; continue; }
+    if (TRADE_LOG.some(t => t.importKey === importKey || t.pendingKey === r.pendingKey)) { duplicateRows++; continue; }
     imported.push({
       id: String(Date.now()) + Math.random().toString(16).slice(2),
       source: "fidelity-history",
       importKey,
+      pendingKey: r.pendingKey,
       date: r.date,
       account: r.account,
       ticker: r.symbol,
@@ -1126,7 +1174,81 @@ function importFidelityAccountHistory(rows) {
   TRADE_LOG = TRADE_LOG.concat(imported);
   saveTrades();
   renderTrades();
-  tradeMsg(`Imported ${imported.length} realized Fidelity sale row${imported.length === 1 ? "" : "s"}. Skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}${unmatchedSells ? `; ${unmatchedSells} sell row${unmatchedSells === 1 ? "" : "s"} had missing prior buys` : ""}${duplicateRows ? `; ${duplicateRows} duplicate row${duplicateRows === 1 ? "" : "s"} ignored` : ""}.`);
+  tradeMsg(`Imported ${imported.length} realized Fidelity sale row${imported.length === 1 ? "" : "s"}. Skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}${clearedPending ? `; replaced ${clearedPending} pending row${clearedPending === 1 ? "" : "s"}` : ""}${unmatchedSells ? `; ${unmatchedSells} sell row${unmatchedSells === 1 ? "" : "s"} had missing prior buys` : ""}${duplicateRows ? `; ${duplicateRows} duplicate row${duplicateRows === 1 ? "" : "s"} ignored` : ""}.`);
+}
+function parseFidelityPendingText(text) {
+  const lines = String(text || "").split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const rows = [];
+  for (let i = 0; i < lines.length; i++) {
+    const date = parseLocalDateValue(lines[i]);
+    if (!date || i + 4 >= lines.length) continue;
+    const rawAccount = lines[i + 1];
+    const order = lines[i + 2];
+    const status = lines[i + 3];
+    const amountLine = lines[i + 4];
+    const orderMatch = order.match(/^(Buy|Sell)\s+(?:(\$[\d,.]+)|([\d,.]+)\s+Shares?)\s+of\s+([A-Z][A-Z0-9.]*)\b(.*)$/i);
+    const fillMatch = status.match(/^Filled at\s+\$?([\d,.]+)/i);
+    if (!orderMatch) continue;
+    rows.push({ date, rawAccount, order, status, amountLine, orderMatch, fillMatch });
+    i += 4;
+  }
+  return rows;
+}
+function importPendingFidelityText() {
+  const box = $("tr-pending-text");
+  const parsed = parseFidelityPendingText(box.value);
+  let added = 0;
+  let duplicates = 0;
+  let skippedRoth = 0;
+  let skippedCanceled = 0;
+  let skippedInvalid = 0;
+  const newRows = [];
+  for (const row of parsed) {
+    const account = normalizeFidelityAccountName(row.rawAccount);
+    if (isRothAccount(row.rawAccount)) { skippedRoth++; continue; }
+    if (!row.fillMatch || /canceled/i.test(row.status) || row.amountLine === "--") { skippedCanceled++; continue; }
+    const side = row.orderMatch[1].toUpperCase();
+    const requestedDollars = parseMoney(row.orderMatch[2]);
+    const requestedShares = parseMoney(row.orderMatch[3]);
+    const symbol = String(row.orderMatch[4] || "").toUpperCase();
+    const orderType = String(row.orderMatch[5] || "").replace(/\s+/g, " ").trim();
+    const price = parseMoney(row.fillMatch[1]);
+    const amount = parseMoney(row.amountLine);
+    const qty = requestedShares > 0 ? requestedShares : (price > 0 ? amount / price : 0);
+    if (!symbol || price <= 0 || amount <= 0 || qty <= 0) { skippedInvalid++; continue; }
+    const pendingKey = fidelityTradeMatchKey({ date: row.date, account, symbol, side, qty, price, amount });
+    if (TRADE_LOG.some(t => t.pendingKey === pendingKey || t.importKey === pendingKey) || newRows.some(t => t.pendingKey === pendingKey)) {
+      duplicates++;
+      continue;
+    }
+    newRows.push({
+      id: String(Date.now()) + Math.random().toString(16).slice(2),
+      source: "fidelity-pending",
+      importKey: pendingKey,
+      pendingKey,
+      date: row.date,
+      account,
+      ticker: symbol,
+      action: side,
+      entry: side === "BUY" ? price : 0,
+      stop: 0,
+      shares: qty,
+      plannedRisk: 0,
+      partialPercent: TRADE_DEFAULT_TAKE_PROFIT,
+      partialShares: 0,
+      remainingShares: 0,
+      finalExitPrice: side === "SELL" ? price : 0,
+      finalDate: "",
+      realizedPnl: NaN,
+      notes: `Pending ${side}${requestedDollars ? ` ${fmt(requestedDollars)}` : ""}${orderType ? ` · ${orderType}` : ""} · Amount ${fmt(amount)}`,
+    });
+    added++;
+  }
+  TRADE_LOG = TRADE_LOG.concat(newRows);
+  saveTrades();
+  renderTrades();
+  if (added) box.value = "";
+  tradeMsg(`Imported ${added} pending Fidelity row${added === 1 ? "" : "s"}${skippedRoth ? `; skipped ${skippedRoth} Roth IRA row${skippedRoth === 1 ? "" : "s"}` : ""}${skippedCanceled ? `; skipped ${skippedCanceled} canceled row${skippedCanceled === 1 ? "" : "s"}` : ""}${duplicates ? `; ${duplicates} duplicate row${duplicates === 1 ? "" : "s"} ignored` : ""}${skippedInvalid ? `; ${skippedInvalid} row${skippedInvalid === 1 ? "" : "s"} could not be read` : ""}.`);
 }
 async function importTrades(file) {
   if (!file) return;
@@ -1258,6 +1380,7 @@ $("tr-import").addEventListener("click", () => $("tr-file").click());
 $("tr-file").addEventListener("change", () => importTrades($("tr-file").files[0]));
 $("tr-copy-code").addEventListener("click", copyTradeCode);
 $("tr-apply-code").addEventListener("click", applyTradeCode);
+$("tr-import-pending").addEventListener("click", importPendingFidelityText);
 $("tr-clear").addEventListener("click", () => {
   if (!TRADE_LOG.length) { tradeMsg("The trade log is already empty."); return; }
   if (confirm("Clear the entire trade log from this browser?")) {
