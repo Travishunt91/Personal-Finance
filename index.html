@@ -108,6 +108,16 @@
   .calc-body{padding:18px}
   .trade-form{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .trade-form .wide{grid-column:1/-1}
+  .rules-card{margin-bottom:14px}
+  .rules-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+  .rules-head .ed-h{margin:0}
+  .rule-badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+  .rule-badge{border:1px solid var(--line);border-radius:999px;background:#fbfcfe;color:var(--ink);font-size:.7rem;font-weight:800;padding:5px 8px;white-space:nowrap}
+  .rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .rule-item{border:1px solid var(--line);border-radius:12px;background:#fbfcfe;padding:11px}
+  .rule-item .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;margin-bottom:5px}
+  .rule-item .v{font-size:.9rem;line-height:1.35;font-weight:650}
+  .rule-item.critical{background:var(--warn-soft);border-color:#f1db9f}
   .calc-results{display:grid;gap:16px;margin-top:16px}
   .calc-result-group{border-top:1px solid var(--line);padding-top:12px}
   .calc-group-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;margin-bottom:8px}
@@ -184,6 +194,9 @@
     .tool-switch{position:sticky;top:6px;z-index:3}
     .trade-head{display:block}
     .trade-form,.trade-summary,.calc-results,.calc-result-group.final .trade-summary{grid-template-columns:1fr}
+    .rules-head{display:block}
+    .rule-badges{justify-content:flex-start;margin-top:8px}
+    .rule-grid{grid-template-columns:1fr}
     .data-top{display:block}
     .data-top .note{margin-top:4px}
     .trade-backup-row{grid-template-columns:1fr}
@@ -312,6 +325,46 @@
     </div>
 
     <div class="trade-grid">
+      <div class="card rules-card">
+        <div class="rules-head">
+          <div>
+            <div class="ed-h">Trading Rules</div>
+            <p class="note">Use these checks before sizing the trade.</p>
+          </div>
+          <div class="rule-badges">
+            <span class="rule-badge">8:30-9:30 CT</span>
+            <span class="rule-badge">Max 3 trades</span>
+            <span class="rule-badge">$100 base risk</span>
+          </div>
+        </div>
+        <div class="rule-grid">
+          <div class="rule-item">
+            <div class="k">Market first</div>
+            <div class="v">Check overall market health and key events before taking a setup.</div>
+          </div>
+          <div class="rule-item">
+            <div class="k">Top down levels</div>
+            <div class="v">Start Weekly &gt; Daily, then mark key levels before watching premarket.</div>
+          </div>
+          <div class="rule-item critical">
+            <div class="k">Trading window</div>
+            <div class="v">Trade only 8:30-9:30 CT. Stop after 3 trades.</div>
+          </div>
+          <div class="rule-item critical">
+            <div class="k">Risk</div>
+            <div class="v">$100 max loss at the lowest wick of day. Use $150 only when other support breaks in the process.</div>
+          </div>
+          <div class="rule-item">
+            <div class="k">Entry</div>
+            <div class="v">Enter on premarket break plus candle close, or on the retest pop.</div>
+          </div>
+          <div class="rule-item">
+            <div class="k">Exit / manage</div>
+            <div class="v">Exit on EMA 8/9 break, or move stop up to the lowest wick when the break confirms.</div>
+          </div>
+        </div>
+      </div>
+
       <div class="card calculator-card">
         <div class="calc-banner">
           <div class="ed-h">Entry Calculator</div>
@@ -321,7 +374,7 @@
           <div class="trade-form">
             <div class="field"><label for="tr-entry">Entry price ($)</label><input id="tr-entry" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
             <div class="field"><label for="tr-stop">Stop loss price ($)</label><input id="tr-stop" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
-            <div class="field"><label for="tr-risk">Max loss ($)</label><input id="tr-risk" type="number" inputmode="decimal" step="10" value="300"></div>
+            <div class="field"><label for="tr-risk">Max loss ($)</label><input id="tr-risk" type="number" inputmode="decimal" step="10" value="100"></div>
             <div class="field"><label for="tr-take-profit">EMA take profit (%)</label><input id="tr-take-profit" type="number" inputmode="decimal" step="1" min="0" max="100" value="75"></div>
             <div class="field"><label for="tr-ema-price">EMA sell price ($)</label><input id="tr-ema-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
             <div class="field"><label for="tr-final-price">Final exit price ($)</label><input id="tr-final-price" type="number" inputmode="decimal" step="0.01" placeholder="optional"></div>
@@ -642,7 +695,7 @@ function render() {
 // ---------- trade log ----------
 const TRADE_STORE_KEY = "stockTradeLog.v1";
 const TRADE_SHOW_YTD_KEY = "stockTradeShowYtd.v1";
-const TRADE_DEFAULT_RISK = 300;
+const TRADE_DEFAULT_RISK = 100;
 const TRADE_DEFAULT_TAKE_PROFIT = 75;
 let TRADE_LOG = loadTrades();
 let TRADE_CAL = new Date();
