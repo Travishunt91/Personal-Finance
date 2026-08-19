@@ -113,11 +113,21 @@
   .rules-head .ed-h{margin:0}
   .rule-badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
   .rule-badge{border:1px solid var(--line);border-radius:999px;background:#fbfcfe;color:var(--ink);font-size:.7rem;font-weight:800;padding:5px 8px;white-space:nowrap}
-  .rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .rule-item{border:1px solid var(--line);border-radius:12px;background:#fbfcfe;padding:11px}
-  .rule-item .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;margin-bottom:5px}
-  .rule-item .v{font-size:.9rem;line-height:1.35;font-weight:650}
-  .rule-item.critical{background:var(--warn-soft);border-color:#f1db9f}
+  .rules-flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;position:relative}
+  .rules-flow:before{content:"";position:absolute;left:7%;right:7%;top:25px;height:2px;background:var(--line);z-index:0}
+  .rule-step{position:relative;z-index:1;min-height:156px;border:1px solid var(--line);border-radius:13px;background:#fbfcfe;padding:11px 9px 10px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .rule-step .num{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid var(--accent);color:var(--accent);font-size:.78rem;font-weight:900;margin-bottom:9px;box-shadow:0 0 0 5px #fbfcfe}
+  .rule-step .icon{font-size:1.28rem;line-height:1;margin-bottom:7px}
+  .rule-step .k{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:850;margin-bottom:5px}
+  .rule-step .v{font-size:.78rem;line-height:1.28;font-weight:680}
+  .rule-step.focus{background:var(--warn-soft);border-color:#f1db9f}
+  .rule-step.focus .num{border-color:var(--warn);color:var(--warn)}
+  .rule-step.enter{background:var(--accent-soft);border-color:#bee6d0}
+  .rule-step.enter .num{background:#fff}
+  .rule-callouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+  .rule-callout{border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 11px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .rule-callout .k{font-size:.67rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:850}
+  .rule-callout .v{font-size:.92rem;font-weight:850;font-variant-numeric:tabular-nums;text-align:right}
   .calc-results{display:grid;gap:16px;margin-top:16px}
   .calc-result-group{border-top:1px solid var(--line);padding-top:12px}
   .calc-group-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;margin-bottom:8px}
@@ -196,7 +206,14 @@
     .trade-form,.trade-summary,.calc-results,.calc-result-group.final .trade-summary{grid-template-columns:1fr}
     .rules-head{display:block}
     .rule-badges{justify-content:flex-start;margin-top:8px}
-    .rule-grid{grid-template-columns:1fr}
+    .rules-flow{grid-template-columns:1fr;gap:9px}
+    .rules-flow:before{left:24px;right:auto;top:20px;bottom:20px;width:2px;height:auto}
+    .rule-step{min-height:auto;display:grid;grid-template-columns:42px 1fr;grid-template-areas:"num key" "num val";align-items:center;text-align:left;padding:10px 12px}
+    .rule-step .num{grid-area:num;margin:0;box-shadow:0 0 0 5px #fbfcfe}
+    .rule-step .icon{display:none}
+    .rule-step .k{grid-area:key;margin-bottom:3px}
+    .rule-step .v{grid-area:val}
+    .rule-callouts{grid-template-columns:1fr}
     .data-top{display:block}
     .data-top .note{margin-top:4px}
     .trade-backup-row{grid-template-columns:1fr}
@@ -337,30 +354,56 @@
             <span class="rule-badge">$100 base risk</span>
           </div>
         </div>
-        <div class="rule-grid">
-          <div class="rule-item">
+        <div class="rules-flow" aria-label="Trading rule sequence">
+          <div class="rule-step">
+            <div class="num">1</div>
+            <div class="icon">M</div>
             <div class="k">Market first</div>
-            <div class="v">Check overall market health and key events before taking a setup.</div>
+            <div class="v">Check market health and key events before any setup.</div>
           </div>
-          <div class="rule-item">
+          <div class="rule-step">
+            <div class="num">2</div>
+            <div class="icon">W/D</div>
             <div class="k">Top down levels</div>
-            <div class="v">Start Weekly &gt; Daily, then mark key levels before watching premarket.</div>
+            <div class="v">Start Weekly &gt; Daily, then mark key levels.</div>
           </div>
-          <div class="rule-item critical">
+          <div class="rule-step focus">
+            <div class="num">3</div>
+            <div class="icon">8:30</div>
             <div class="k">Trading window</div>
-            <div class="v">Trade only 8:30-9:30 CT. Stop after 3 trades.</div>
+            <div class="v">Trade 8:30-9:30 CT only. Stop after 3 trades.</div>
           </div>
-          <div class="rule-item critical">
+          <div class="rule-step focus">
+            <div class="num">4</div>
+            <div class="icon">$</div>
             <div class="k">Risk</div>
-            <div class="v">$100 max loss at the lowest wick of day. Use $150 only when other support breaks in the process.</div>
+            <div class="v">$100 at low wick of day. Use $150 only if support breaks.</div>
           </div>
-          <div class="rule-item">
+          <div class="rule-step enter">
+            <div class="num">5</div>
+            <div class="icon">GO</div>
             <div class="k">Entry</div>
-            <div class="v">Enter on premarket break plus candle close, or on the retest pop.</div>
+            <div class="v">Enter on premarket break with close, or retest pop.</div>
           </div>
-          <div class="rule-item">
+          <div class="rule-step">
+            <div class="num">6</div>
+            <div class="icon">EMA</div>
             <div class="k">Exit / manage</div>
-            <div class="v">Exit on EMA 8/9 break, or move stop up to the lowest wick when the break confirms.</div>
+            <div class="v">Exit on EMA 8/9 break, or raise stop to low wick.</div>
+          </div>
+        </div>
+        <div class="rule-callouts">
+          <div class="rule-callout">
+            <div class="k">Window</div>
+            <div class="v">8:30-9:30 CT</div>
+          </div>
+          <div class="rule-callout">
+            <div class="k">Max trades</div>
+            <div class="v">3</div>
+          </div>
+          <div class="rule-callout">
+            <div class="k">Base risk</div>
+            <div class="v">$100</div>
           </div>
         </div>
       </div>
